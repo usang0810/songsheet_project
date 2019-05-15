@@ -83,12 +83,10 @@ def templating(src, temp):
 
     return src, ary
 
-# 계이름 추출
-# def Findsyllable(fiveline, notes):
-
-#     for k in range(len(notes)):
-#         for i in range(len(fiveline)):
-#             for j in range(len(fiveline[i])):
+def find_contours(src):
+    contours, hierachy = cv2.findContours(src, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(src, contours, 0, 3)
+    print(contours)
             
 
 src = "./images/bears.jpg"
@@ -115,18 +113,25 @@ mophol_img = opening(del_line, kernal)
 # mophol_img = opening(mophol_img, kernal)
 
 # garbage_del(binary, fiveline)
+contours, hierachy = cv2.findContours(mophol_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+# cv2.drawContours(mophol_img, contours, -1, 0, 3)
 
-cv2.imshow('image', binary)
-cv2.imshow('temp', quarter)
+for contr in contours:
+    x, y, w, h = cv2.boundingRect(contr)
+    cv2.rectangle(mophol_img, (x,y), (x+w, y+h), 0, 1)
+
+cv2.imshow('image', mophol_img)
+# cv2.imshow('temp', quarter)
 # cv2.waitKey()
 # cv2.imshow('del_line', del_line)
 # cv2.waitKey()
-cv2.imshow('mophol', mophol_img)
+# cv2.imshow('mophol', mophol_img)
 # cv2.rectangle(mophol_img, (0, 0), (50, 50), 0, 2)
 mophol_img, notes = templating(mophol_img, quarter)
 mophol_img2, notes2 = templating(binary, quarter)
-cv2.imshow('mophol', mophol_img)
-cv2.imshow('mophol2', mophol_img2)
+# cv2.imshow('mophol', mophol_img)
+# cv2.imshow('mophol2', mophol_img2)
+
 print(len(notes), notes)
 # print(len(notes2), notes2)
 cv2.waitKey()

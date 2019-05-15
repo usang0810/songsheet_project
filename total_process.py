@@ -65,69 +65,71 @@ def closing(src, k):
 
     return closing
 
-# 템플릿 매칭
-def templating(src, temp):
+# labeling을 할때는 흑백전환 후 해야함
+# 1차 레이블링 - 오선주의 영역을 레이블링
+def first_labeling(src): 
+    cnt, labels, stats, centroids = cv2.connectedComponentsWithStats(src)
 
-    w, h = temp.shape[::-1]
-    res = cv2.matchTemplate(src, temp, cv2.TM_CCOEFF_NORMED)
-    threshold = 0.70 # 정확도
-    loc = np.where(res >= threshold)
-
-    ary = [] # 좌표값들
-    for pt in zip(*loc[::-1]):
-        bottom_right = pt[0] + w, pt[1] + h
-        ary.append([(pt[0]*2+w)/2, (pt[1]*2+h)/2])
+    dst = np.zeros(src.shape, dtype = src.dtype)
+    label_ary = []
+    for i in range(1, int(cnt)):
         
-        cv2.rectangle(src, pt, bottom_right, 0, 2)
-        # cv2.circle(src, (int((pt[0]*2+w)/2), int((pt[1]*2+h)/2)), 5, 0, 2)
+        x, y, width, height, area = stats[i] # stats는 1부터 시작
+        # print(i, area)
+        if area >3500: # label의 넓이가 3500 이상일때만 사각형
+            label_ary.append(stats[i])
+            cv2.rectangle(dst, (x, y), (x+width, y+height), 255, -1)
 
-    return src, ary
+    return dst, label_ary
 
-# 계이름 추출
-# def Findsyllable(fiveline, notes):
+# 2차 레이블링 - 1차 레이블링을 통해 나눈 영역들을에서 요소들을 레이블링
+def second_labeling(label_ary, ary_inv):
 
-#     for k in range(len(notes)):
-#         for i in range(len(fiveline)):
-#             for j in range(len(fiveline[i])):
-            
+    for i in range(len(label_ary)):
+        cnt, labels, stats, centroids = cv2.connectedComponentsWithStats(ary_inv[i])
+
+        for j in range(1, int(cnt)):
+            x, y, width, height, area = stats[j] # stats는 1부터 시작
+            cv2.rectangle(label_ary[i], (x, y), (x+width, y+height), 0, 1)
+        
+        cv2.imshow("roi"+str(i), label_ary[i])
+
+def make_roi(src, ary):
+    roi_img = []
+    
+    for i in ary:
+        img = src[i[1]:i[1]+i[3], i[0]:i[0]+i[2]] # 0:x, 1:y, 2:width, 3:height, 4:area
+        roi_img.append(img)
+        
+    return roi_img
 
 src = "./images/bears.jpg"
-quarter = "./template/quarter.png"
 src = imageLoad(src)
-quarter = imageLoad(quarter)
-
-w, h = quarter.shape[::-1]
-quarter = cv2.resize(quarter, (int(w * 0.35), int(h * 0.35))) # 템플릿이미지 사이즈 조절
+src_not = cv2.bitwise_not(src)
+src_not = binaryTo(src_not) # 이진화를 하지않으면 레이블링의 오차범위가 넓어짐
 
 sharp = sharpTo(src)
 binary = binaryTo(sharp)
 line, fiveline = Findfiveline(binary) # 오선의 좌표값 추출
-print(line, fiveline)
-del_line = delete_line(src, line)
-del_line = binaryTo(del_line)
+
+del_line = delete_line(src, line) # 오선삭제
+del_line = binaryTo(del_line) # 이진화작업
 
 kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)) # 모폴로지 연산을 위한 커널 사각형(5 x 5) 생성
-# 침식 - 팽창 3회 - 침식
-mophol_img = opening(del_line, kernal)
-# mophol_img = closing(mophol_img, kernal)
-# mophol_img = closing(mophol_img, kernal)
-# mophol_img = closing(mophol_img, kernal)
-# mophol_img = opening(mophol_img, kernal)
+mophol_img = opening(del_line, kernal) # 모폴로지 연산을 이용해 오선을 제거한 부분을 자연스럽게 매꿈
+first_labeling, label_ary = first_labeling(src_not) # 1차 레이블링 레이블한 범위를 배열에 저장
+dst = cv2.bitwise_and(mophol_img, mophol_img, mask = first_labeling) # and연산을 이용해 mophol_img에서 mask부분만 나타냄
 
-# garbage_del(binary, fiveline)
+print(label_ary)
+label_ary_inv = [] # 2차레이블링을 위한 레이블링의 inv을 저장하기 위한 배열
+roi_img = make_roi(dst, label_ary) # 레이블 배열을 이용해 영역마다 나눔
+for i in range(len(roi_img)):
+    # cv2.imshow("roi"+str(i), roi_img[i])
+    inv = cv2.bitwise_not(roi_img[i]) # 흑백변환
+    label_ary_inv.append(inv)
+    # cv2.imshow("roi_inv"+str(i), label_ary_inv[i])
 
-cv2.imshow('image', binary)
-cv2.imshow('temp', quarter)
-# cv2.waitKey()
-# cv2.imshow('del_line', del_line)
-# cv2.waitKey()
-cv2.imshow('mophol', mophol_img)
-# cv2.rectangle(mophol_img, (0, 0), (50, 50), 0, 2)
-mophol_img, notes = templating(mophol_img, quarter)
-mophol_img2, notes2 = templating(binary, quarter)
-cv2.imshow('mophol', mophol_img)
-cv2.imshow('mophol2', mophol_img2)
-print(len(notes), notes)
-# print(len(notes2), notes2)
-cv2.waitKey()
+second_labeling(roi_img, label_ary_inv)
+
+cv2.waitKey(0)
 cv2.destroyAllWindows()
