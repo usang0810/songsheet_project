@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-image = cv2.imread("./images/Moonlight Shadow Flauta-1.png", cv2.IMREAD_GRAYSCALE)
+image = cv2.imread("./images/bears.jpg", cv2.IMREAD_GRAYSCALE)
 quarter = cv2.imread("./template/quarter.png", cv2.IMREAD_GRAYSCALE)
 half_space = cv2.imread("./template/half-note-space.png", cv2.IMREAD_GRAYSCALE)
 half_line = cv2.imread("./template/half-not-line.png", cv2.IMREAD_GRAYSCALE)
