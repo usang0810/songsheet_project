@@ -1,4 +1,5 @@
 import cv2
+import os
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -125,20 +126,36 @@ def templating(src, temp):
 
     w, h = temp.shape[::-1]
     res = cv2.matchTemplate(src, temp, cv2.TM_CCOEFF_NORMED)
-    threshold = 0.30 # 정확도
+    threshold = 0.95 # 정확도
     loc = np.where(res >= threshold)
 
     ary = [] # 좌표값들
     for pt in zip(*loc[::-1]):
+        ary2 = [pt]
         bottom_right = pt[0] + w, pt[1] + h
-        ary.append([(pt[0]*2+w)/2, (pt[1]*2+h)/2])
+        ary2.append(bottom_right)
+        # ary.append([(pt[0]*2+w)/2, (pt[1]*2+h)/2])
+        ary.append(ary2)
         
         cv2.rectangle(src, pt, bottom_right, 0, 1)
         # cv2.circle(src, (int((pt[0]*2+w)/2), int((pt[1]*2+h)/2)), 5, 0, 2)
 
     return src, ary
 
+# 템플릿 디렉토리에서 파일 가져오기
+def search(dirname):
+    filenames = os.listdir(dirname)
+    ary = []
 
+    for filename in filenames:
+        full_filename = os.path.join(dirname, filename)
+        ary.append(full_filename)
+        print (full_filename)
+
+    return ary
+
+dirname = "./template"
+template_names = search(dirname)
 src = "./images/bears.jpg"
 src = imageLoad(src)
 src_not = cv2.bitwise_not(src)
@@ -158,31 +175,51 @@ mophol_img = opening(del_line, kernal) # 모폴로지 연산을 이용해 오선
 first_labeling, label_ary = first_labeling(src_not) # 1차 레이블링 레이블한 범위를 배열에 저장
 dst = cv2.bitwise_and(mophol_img, mophol_img, mask = first_labeling) # and연산을 이용해 mophol_img에서 mask부분만 나타냄
 
-cv2.imshow("first", first_labeling)
+# cv2.imshow("first", first_labeling)
 
 first_inv = cv2.bitwise_not(first_labeling) # 배경이미지에 관심영역을 넣기위한 labeling이미지의 inv
 add = cv2.add(dst, first_inv) # 배경과 잘라낸 이미지 합성
-cv2.imshow("add", add)
 add_inv = cv2.bitwise_not(add)
 
 second_labeling2, label_ary2 = second_labeling(add_inv)
 second_labeling2 = cv2.bitwise_not(second_labeling2)
 
-temp = "./template/high.png"
-temp = imageLoad(temp)
-temp = binaryTo(temp)
-template, high = templating(add, temp)
+# temp = "./template/high.jpg"
+# temp = imageLoad(temp)
+# temp = binaryTo(temp)
+# template, high = templating(add, temp)
 
+# temp2 = "./template/note_8.jpg"
+# temp2 = imageLoad(temp2)
+# temp2 = binaryTo(temp2)
+# template2, high = templating(add, temp2)
 
-temp2 = "./template/solid-note.png"
-temp2 = imageLoad(temp2)
-temp2 = binaryTo(temp2)
-template2, high = templating(add, temp2)
+# temp3 = "./template/note_4.jpg"
+# temp3 = imageLoad(temp3)
+# temp3 = binaryTo(temp3)
+# template3, high = templating(add, temp3)
 
-cv2.imshow("second_labeling2", second_labeling2)
-cv2.imshow("temp", template)
+# temp4 = "./template/note_2.jpg"
+# temp4 = imageLoad(temp4)
+# temp4 = binaryTo(temp4)
+# template4, high = templating(add, temp4)
+
+i = 1
+for template_name in template_names:
+    temp = imageLoad(template_name)
+    temp = binaryTo(temp)
+    ary = []
+    cv2.imshow("temp"+str(i), temp)
+    i += 1
+    add, ary = templating(add, temp)
+    print(ary)
+
+cv2.imshow("add", add)
+
+# cv2.imshow("second_labeling2", second_labeling2)
+# cv2.imshow("temp", template)
 # cv2.imshow("second_label", second_labeling2)
-print(label_ary2)
+# print(label_ary2)
 # 모폴로지 연산을 이용해 머리좌표만 남김
 # mophol_img2 = opening(add, kernal)
 # mophol_img2 = closing(add, kernal)
@@ -193,13 +230,15 @@ print(label_ary2)
 # mophol_img2 = cv2.erode(mophol_img2, kernal, iterations=1)
 # cv2.imshow("mophol_img2", mophol_img2)
 
-# print(label_ary)
-label_ary_inv = [] # 2차레이블링을 위한 레이블링의 inv을 저장하기 위한 배열
-roi_img = make_roi(dst, label_ary) # 레이블 배열을 이용해 영역마다 나눔
-for i in range(len(roi_img)):
-    # cv2.imshow("roi"+str(i), roi_img[i])
-    inv = cv2.bitwise_not(roi_img[i]) # 흑백변환
-    label_ary_inv.append(inv)
+# label_ary_inv = [] # 2차레이블링을 위한 레이블링의 inv을 저장하기 위한 배열
+roi_img2 = make_roi(dst, label_ary2) # 레이블 배열을 이용해 영역마다 나눔
+# template, high = templating(roi_img2, temp)
+# print(high)
+
+for i in range(len(roi_img2)):
+    # cv2.imshow("roi"+str(i), roi_img2[i])
+    inv = cv2.bitwise_not(roi_img2[i]) # 흑백변환
+    # label_ary_inv.append(inv)
     # cv2.imshow("roi_inv"+str(i), label_ary_inv[i])
 
 # second_labeling(roi_img, label_ary_inv)
