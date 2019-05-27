@@ -210,9 +210,10 @@ for template_name in template_names:
     temp = binaryTo(temp)
     ary = []
     cv2.imshow("temp"+str(i), temp)
-    i += 1
     add, ary = templating(add, temp)
-    print(ary)
+    print("temp"+str(i),":",ary)
+
+    i += 1
 
 cv2.imshow("add", add)
 
