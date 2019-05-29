@@ -133,7 +133,7 @@ def third_labeling(src):
         x, y, width, height, area = stats[i] # stats는 1부터 시작 0은 이미지 전체영역
         label_ary.append([int((x*2+width)/2), int((y*2+height)/2)])
         
-        print("label_array: ", label_ary[i-1])
+        # print("label_array: ", label_ary[i-1])
         
     return label_ary
 
@@ -167,8 +167,8 @@ def templating(src, temp):
         ary.append(ary2)
         
         cv2.rectangle(src, pt, bottom_right, 0, 1)
-        print("top_left", pt)
-        print("bottom_right", bottom_right)
+        # print("top_left", pt)
+        # print("bottom_right", bottom_right)
         # cv2.circle(src, (int((pt[0]*2+w)/2), int((pt[1]*2+h)/2)), 5, 0, 2)
 
     return src, ary
@@ -181,7 +181,7 @@ def search(dirname):
     for filename in filenames:
         full_filename = os.path.join(dirname, filename)
         ary.append(full_filename)
-        print (full_filename)
+        # print (full_filename)
 
     return ary
 
@@ -203,7 +203,7 @@ del_line = binaryTo(del_line) # 이진화작업
 del_line = cv2.bitwise_not(del_line)
 
 # 모폴로지 연산을 위한 커널 사각형(2 x 2) 생성, 악보크기에 따라 커널 사각형의 값이 적절해야함
-kernal = cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2))
+kernal = cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2)) # 십자가형 커널
 
 # mophol_img = opening(del_line, kernal) # 모폴로지 연산을 이용해 오선을 제거한 부분을 자연스럽게 매꿈
 # mophol_img = closing(del_line, kernal)
@@ -229,34 +229,73 @@ cv2.imshow("add2", add2)
 
 add2_inv = cv2.bitwise_not(add2)
 
-kernal2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-kernal3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+kernal2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)) # 타원형 커널
+kernal3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)) # 사각형 커널
 
-# sobel = cv2.Sobel(add2_inv, -1, 1, 3, ksize=5)
-# mophol_img2 = cv2.morphologyEx(add2_inv, cv2.MORPH_CLOSE, kernal2, iterations=2)
-# mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_OPEN, kernal2, iterations=4)
-mophol_img2 = cv2.morphologyEx(add2_inv, cv2.MORPH_DILATE, kernal3, iterations=1)
-mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_ERODE, kernal3, iterations=2)
-mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_CLOSE, kernal2, iterations=3)
-# mophol_img2 = cv2.erode(add2_inv, kernal2, iterations=1)
-# mophol_img2 = cv2.dilate(mophol_img2, kernal2, iterations=3)
-# mophol_img2 = cv2.erode(mophol_img2, kernal2, iterations=5)
-# mophol_img2 = cv2.dilate(mophol_img2, kernal, iterations=4)
+# 열기연산으로 머리와 꼬리를 나눈후 팽창연산으로 음표의 머리를 메꾸고 침식연산으로 머리 외 부분을 완전히 삭제
+mophol_img2 = cv2.morphologyEx(add2_inv, cv2.MORPH_OPEN, kernal2, iterations=1)
+mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_DILATE, kernal3, iterations=1)
+mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_ERODE, kernal3, iterations=3)
 
-# mophol_img2 = opening(add2_inv, kernal)
-# mophol_img2 = cv2.erode(mophol_img2, kernal, iterations=3)
-# mophol_img2 = cv2.dilate(mophol_img2, kernal, iterations=1)
-# mophol_img2 = cv2.bitwise_not(mophol_img2)
 # cv2.imshow("sobel", sobel)
 cv2.imshow("mo2", mophol_img2)
 
 third = third_labeling(mophol_img2)
+
+# 오선의 범위별로 음표의 머리좌표들을 note_heads에 저장
+note_heads = []
+for i in range(len(fiveline)):
+    note_head = []
+    for j in range(len(third)):
+        if fiveline[i][0] - 40 <= third[j][1] <= fiveline[i][4] + 40:
+            note_head.append(third[j])
+        
+    note_heads.append(note_head)
+
+# 좌표들을 x좌표 기준으로 정렬
+for i in range(len(note_heads)):
+    note_heads[i].sort()
+    print(note_heads[i])
+
 print(fiveline)
-print(third)
+# print(third)
+# print(note_heads)
 
-second_labeling2 = cv2.bitwise_not(second_labeling2)
-roi_img = make_roi(add, label_ary2)
+note_names = []
+for i in range(len(note_heads)):
+    note_name = []
+    for j in range(len(note_heads[i])):
+        if note_heads[i][j][1] < fiveline[i][0] - 1:
+            note_name.append('PASS')
+        elif fiveline[i][0] -1 <= note_heads[i][j][1] <= fiveline[i][0] +1:
+            note_name.append('F')
+        elif int((fiveline[i][0] + fiveline[i][1]) / 2) -1 <= note_heads[i][j][1] <= int((fiveline[i][0] + fiveline[i][1]) / 2) +1:
+            note_name.append('E')
+        elif fiveline[i][1] -1 <= note_heads[i][j][1] <= fiveline[i][1] +1:
+            note_name.append('D')
+        elif int((fiveline[i][1] + fiveline[i][2]) / 2) -1 <= note_heads[i][j][1] <= int((fiveline[i][1] + fiveline[i][2]) / 2) +1:
+            note_name.append('C')
+        elif fiveline[i][2] -1 <= note_heads[i][j][1] <= fiveline[i][2] +1:
+            note_name.append('B')
+        elif int((fiveline[i][2] + fiveline[i][3]) / 2) -1 <= note_heads[i][j][1] <= int((fiveline[i][2] + fiveline[i][3]) / 2) +1:
+            note_name.append('A')
+        elif fiveline[i][3] -1 <= note_heads[i][j][1] <= fiveline[i][3] +1:
+            note_name.append('G')
+        elif int((fiveline[i][3] + fiveline[i][4]) / 2) -1 <= note_heads[i][j][1] <= int((fiveline[i][3] + fiveline[i][4]) / 2) +1:
+            note_name.append('F')
+        elif fiveline[i][4] -1 <= note_heads[i][j][1] <= fiveline[i][4] +1:
+            note_name.append('E')
+        elif fiveline[i][4] +1 < note_heads[i][j][1]:
+            note_name.append('PASS')
+    note_names.append(note_name)
 
+for i in range(len(note_names)):
+    print(note_names[i])
+
+
+
+# second_labeling2 = cv2.bitwise_not(second_labeling2)
+# roi_img = make_roi(add, label_ary2)
 
 # temp = "./template/high.jpg"
 # temp = imageLoad(temp)
