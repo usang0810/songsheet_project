@@ -216,11 +216,11 @@ def findnotebeat(notes, image):
         roi = image[y:y+height, x:x+width]
 
         # 높이가 평균높이보다 작다면 온음표
-        if roi.shape[0] < avg_height:
+        if roi.shape[0] < avg_height - 1:
             note.set_beat(1)
         else:
             # 폭이 평균보다 크다면 8분음표
-            if roi.shape[1] > avg_width:
+            if roi.shape[1] > avg_width + 1:
                 note.set_beat(8)
             else:
                 center = int(roi.shape[1] / 2)
@@ -242,8 +242,8 @@ def findnotebeat(notes, image):
 
 
 
-dirname = "./template2"
-template_names = search(dirname)
+# dirname = "./template2"
+# template_names = search(dirname)
 src = "./images/bears.jpg"
 
 src = imageLoad(src)
@@ -320,7 +320,6 @@ label_cnt, label_ary = labeling(mophol_img2)
 heads_ary = []
 for i in range(int(label_cnt)):
         heads_ary.append([int((label_ary[i]['x']*2+label_ary[i]['width'])/2), int((label_ary[i]['y']*2+label_ary[i]['height'])/2)])
-
 heads_ary.sort()
 
 kernel4 = np.array([[0, -1, 0],
@@ -348,12 +347,22 @@ for i in range(int(label_cnt)):
         note_rect_ary.append(note_rect)
 note_rect_ary.sort()
 
+'''
+정렬된 머리좌표들과 음표의 사각형 값들을 넣어줌
+사각형의 x좌표값이 겹치면 순서가 엉켜서 버그발생
+사각형의 x, y값과 머리좌표의 x, y값의 오차범위를 이용해 해결
+'''
 notes = []
-for i in range(len(heads_ary)):
+for i in range(len(note_rect_ary)):
     note = Note()
-    note.set_note_head(heads_ary[i])
-    note.set_note_rect(note_rect_ary[i])
-    notes.append(note)
+    for j in range(len(heads_ary)):
+        if note_rect_ary[i][0] < heads_ary[j][0] < note_rect_ary[i][0] + 10:
+            if note_rect_ary[i][1] < heads_ary[j][1] < note_rect_ary[i][1] + 100:
+                note.set_note_head(heads_ary[j])
+                note.set_note_rect(note_rect_ary[i])
+                notes.append(note)
+                break
+
 
 # 오선의 한 뭉치일때를 위한 초기값
 fline_range = 50
@@ -368,6 +377,8 @@ for i in range(len(fiveline)):
 
 findnotename(fiveline, notes)
 findnotebeat(notes, mophol_img3)
+
+notes.sort(key = lambda object:object.fline_area)
 
 for i in range(len(notes)):
     print(notes[i].__dict__)
