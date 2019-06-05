@@ -6,28 +6,40 @@ from matplotlib import pyplot as plt
 class Note:
     def __init__(self):
         self.note_head = None
-        self.note_beat = None
+        self.note_rect = None
         self.fline_area = 0
         self.name = None
         self.beat = None
         
-    def set_head(self, note_head):
+    def set_note_head(self, note_head):
         self.note_head = note_head
 
-    def set_beat(self, note_beat):
-        self.note_beat = note_beat
+    def set_note_rect(self, note_rect):
+        self.note_rect = note_rect
 
     def set_fline(self, fline_area):
         self.fline_area = fline_area
-        
-    def get_head(self):
+
+    def set_name(self, name):
+        self.name = name
+
+    def set_beat(self, beat):
+        self.beat = beat
+
+    def get_note_head(self):
         return self.note_head
 
-    def get_beat(self):
-        return self.note_beat
+    def get_note_rect(self):
+        return self.note_rect
 
     def get_fline(self):
         return self.fline_area
+        
+    def get_name(self):
+        return self.fline_name
+
+    def get_beat(self):
+        return self.fline_beat
     
     def __str__(self):
         return '{self.note_head}'
@@ -184,7 +196,7 @@ def third_labeling(src):
         label_ary.append([int((x*2+width)/2), int((y*2+height)/2)])
         # note = Note(note_head = [int((x*2+width)/2), int((y*2+height)/2)])
         note = Note()
-        note.set_head([int((x*2+width)/2), int((y*2+height)/2)])
+        note.set_note_head([int((x*2+width)/2), int((y*2+height)/2)])
 
         notes.append(note)
         # print("label_array: ", label_ary[i-1])
@@ -239,37 +251,49 @@ def search(dirname):
 
     return ary
 
-def findnotename(note_heads, fiveline):
-    note_names = []
-    for i in range(len(note_heads)):
-        note_name = []
-        for j in range(len(note_heads[i])):
-            if note_heads[i][j][1] < fiveline[i][0] - 1:
-                note_name.append('PASS')
-            elif fiveline[i][0] -1 <= note_heads[i][j][1] <= fiveline[i][0] +1:
-                note_name.append('5F')
-            elif int((fiveline[i][0] + fiveline[i][1]) / 2) -1 <= note_heads[i][j][1] <= int((fiveline[i][0] + fiveline[i][1]) / 2) +1:
-                note_name.append('5E')
-            elif fiveline[i][1] -1 <= note_heads[i][j][1] <= fiveline[i][1] +1:
-                note_name.append('5D')
-            elif int((fiveline[i][1] + fiveline[i][2]) / 2) -1 <= note_heads[i][j][1] <= int((fiveline[i][1] + fiveline[i][2]) / 2) +1:
-                note_name.append('5C')
-            elif fiveline[i][2] -1 <= note_heads[i][j][1] <= fiveline[i][2] +1:
-                note_name.append('4B')
-            elif int((fiveline[i][2] + fiveline[i][3]) / 2) -1 <= note_heads[i][j][1] <= int((fiveline[i][2] + fiveline[i][3]) / 2) +1:
-                note_name.append('4A')
-            elif fiveline[i][3] -1 <= note_heads[i][j][1] <= fiveline[i][3] +1:
-                note_name.append('4G')
-            elif int((fiveline[i][3] + fiveline[i][4]) / 2) -1 <= note_heads[i][j][1] <= int((fiveline[i][3] + fiveline[i][4]) / 2) +1:
-                note_name.append('4F')
-            elif fiveline[i][4] -1 <= note_heads[i][j][1] <= fiveline[i][4] +1:
-                note_name.append('4E')
-            elif fiveline[i][4] +1 < note_heads[i][j][1]:
-                note_name.append('PASS')
-        note_names.append(note_name)
 
-    return note_names
+def findnotename(fiveline, notes):
+    note_name_def = ['4C', '4D', '4E', '4F', '4G', '4A', '4B', '5C', '5D', '5E', '5F', '5E', '5F', '5G', '5A', '5B',
+ '6C',' 6D', '6E', '6F', '6E', '6G']
+
+    for note in notes:
+        line_area = note.get_fline()
+        dist = int((fiveline[line_area][1] - fiveline[line_area][0]) / 2)
+
+        line_value = fiveline[line_area][4] + (dist*2)
+
+        for i in range(len(note_name_def)):
+            if line_value - 1 <= note.note_head[1] <= line_value +1:
+                note.set_name(note_name_def[i])
+                break
+            else:
+                line_value -= dist
+
+
+
+# def findnotename(note_heads, fiveline):
+#     note_name_def = ['4C', '4D', '4E', '4F', '4G', '4A', '4B', '5C', '5D', '5E', '5F', '5E', '5F', '5G', '5A', '5B',
+#  '6C',' 6D', '6E', '6F', '6E', '6G']
     
+#     note_names = []
+#     for i in range(len(note_heads)):
+#         note_name = []
+#         # dist = int((fiveline[i][0] + fiveline[i][1]) / 2)
+#         dist = int((fiveline[i][1] - fiveline[i][0]) / 2)
+
+#         for j in range(len(note_heads[i])):
+#             line_value = fiveline[i][4] + (dist*2) # 처음 기준값은 4옥타브 도
+#             for k in range(len(note_name_def)):
+#                 if line_value - 1 <= note_heads[i][j][1] <= line_value +1:
+#                     note_name.append(note_name_def[k])
+#                     break
+#                 else:
+#                     line_value -= dist
+            
+#         note_names.append(note_name)
+    
+#     print(note_names)
+#     return note_names
 
 dirname = "./template2"
 template_names = search(dirname)
@@ -355,7 +379,7 @@ for i in range(len(note_heads)):
 # print(third)
 # print(note_heads)
 
-note_names = findnotename(note_heads, fiveline)
+# note_names = findnotename(note_heads, fiveline)
 
 # for i in range(len(note_names)):
 #     print(note_names[i])
@@ -381,8 +405,8 @@ note_beats.sort()
 notes2 = []
 for i in range(len(third)):
     note = Note()
-    note.set_head(third[i])
-    note.set_beat(note_beats[i])
+    note.set_note_head(third[i])
+    note.set_note_rect(note_beats[i])
     notes2.append(note)
 
 
@@ -394,12 +418,17 @@ for i in range(len(fiveline)):
         print(dist)
 
     for j in range(len(notes2)):
-        if fiveline[i][0] - degree <= notes2[j].note_head[1] <= fiveline[i][4] + degree:
-            notes2[j].set_fline(i+1)
+        if fiveline[i][0] - dist <= notes2[j].note_head[1] <= fiveline[i][4] + dist:
+            notes2[j].set_fline(i)
+
+
+# for i in range(len(notes)):
+#     print(notes2[i].__dict__)
+
+findnotename(fiveline, notes2)
 
 for i in range(len(notes)):
     print(notes2[i].__dict__)
-
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()
