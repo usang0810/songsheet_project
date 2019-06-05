@@ -32,6 +32,9 @@ class Note:
     def get_note_rect(self):
         return self.note_rect
 
+    def get_note_rect_element(self):
+        return self.note_rect[0], self.note_rect[1], self.note_rect[2], self.note_rect[3]
+
     def get_fline(self):
         return self.fline_area
         
@@ -269,31 +272,64 @@ def findnotename(fiveline, notes):
             else:
                 line_value -= dist
 
+# 박자 검출
+def findnotebeat(notes, image):
+    '''
+    음표의 영역의 평균값을 이용하여 1, 2, 4, 8분 음표 구분
+    가로가 평균보다 길다면 8분음표, 세로가 평균보다 작다면 온음표
+    8, 16, 32.. 이후의 음표들은 먼저 8분음표로 저장 후 Note의 beat가 8인 경우에만
+    반복문을 이용해 8, 16, 32분 음표를 세분화 하는 작업이 필요
+    그 외의 온음표, 2, 4분음표는 바로 구분
+    2분음표와 4분음표 열의 중심값(오차범위 : -1~+1)을 이용하여
+    이전값과 다른값이 들어왔을 때 count를 증가시켜 count가 3이상이라면
+    2분음표로 구분하고 아니라면 4분음표로 구분한다
+    '''
+    avg_width = int()
+    avg_height = int()
+    for note in notes:
+        x, y, width, height = note.get_note_rect_element()
+        roi = image[y:y+height, x:x+width]
+        # print(roi)
+        # print(roi.shape[0], roi.shape[1])
+        avg_width += roi.shape[1]
+        avg_height += roi.shape[0]
+
+    avg_width = int(avg_width / len(notes))
+    avg_height = int(avg_height / len(notes))
+
+    print(avg_width, avg_height)
+
+    for note in notes:
+        x, y, width, height = note.get_note_rect_element()
+        roi = image[y:y+height, x:x+width]
+
+        # 높이가 평균높이보다 작다면 온음표
+        if roi.shape[0] < avg_height:
+            note.set_beat(1)
+        else:
+            # 폭이 평균보다 크다면 8분음표
+            if roi.shape[1] > avg_width:
+                note.set_beat(8)
+            else:
+                center = int(roi.shape[1] / 2)
+                for j in range(-1, 1):
+                    pre_value = 0 # 이전값
+                    change_count = 0 # 변환하는 count
+                    for i in range(len(roi)):
+                        if roi[i][center + j] != pre_value:
+                            pre_value = roi[i][center + j]
+                            change_count += 1
+
+                    # 변환횟수가 3회 이상이면 2분음표로 추정하고 break
+                    if change_count >= 3:
+                        note.set_beat(2)
+                        break
+                    # 3회 미만이면 4분음표이지만 오차범위를 돌리기 위해 note break
+                    else:
+                        note.set_beat(4)
 
 
-# def findnotename(note_heads, fiveline):
-#     note_name_def = ['4C', '4D', '4E', '4F', '4G', '4A', '4B', '5C', '5D', '5E', '5F', '5E', '5F', '5G', '5A', '5B',
-#  '6C',' 6D', '6E', '6F', '6E', '6G']
-    
-#     note_names = []
-#     for i in range(len(note_heads)):
-#         note_name = []
-#         # dist = int((fiveline[i][0] + fiveline[i][1]) / 2)
-#         dist = int((fiveline[i][1] - fiveline[i][0]) / 2)
 
-#         for j in range(len(note_heads[i])):
-#             line_value = fiveline[i][4] + (dist*2) # 처음 기준값은 4옥타브 도
-#             for k in range(len(note_name_def)):
-#                 if line_value - 1 <= note_heads[i][j][1] <= line_value +1:
-#                     note_name.append(note_name_def[k])
-#                     break
-#                 else:
-#                     line_value -= dist
-            
-#         note_names.append(note_name)
-    
-#     print(note_names)
-#     return note_names
 
 dirname = "./template2"
 template_names = search(dirname)
@@ -426,8 +462,9 @@ for i in range(len(fiveline)):
 #     print(notes2[i].__dict__)
 
 findnotename(fiveline, notes2)
+findnotebeat(notes2, mophol_img3)
 
-for i in range(len(notes)):
+for i in range(len(notes2)):
     print(notes2[i].__dict__)
 
 cv2.waitKey(0)
