@@ -100,6 +100,46 @@ def delete_line(src, fiveline):
 
     return src
 
+# labeling을 할때는 흑백전환 후 해야함
+def print_labeling(src, notes):
+    cnt, labels, stats, centroids = cv2.connectedComponentsWithStats(src)
+    dst = np.zeros(src.shape, dtype = src.dtype)
+    note_beats = []
+    for i in range(1, int(cnt)):
+        note_beat = []
+        x, y, width, height, area = stats[i] # stats는 1부터 시작 0은 이미지 전체영역
+        note_beat.append(x)
+        note_beat.append(y)
+        note_beat.append(width)
+        note_beat.append(height)
+        notes[i-1].set_beat(note_beat)
+
+        '''
+        src[y:y+height, x:x+width]
+        '''
+        cv2.rectangle(dst, (x, y), (x+width, y+height), 255, -1)
+        # print(src_sum)
+        note_beats.append(note_beat)
+
+    return dst, note_beats, notes
+
+def third_labeling(src):
+    cnt, labels, stats, centroids = cv2.connectedComponentsWithStats(src)
+    label_ary = []
+    notes = []
+    # print(cnt)
+    for i in range(1, int(cnt)):
+        x, y, width, height, area = stats[i] # stats는 1부터 시작 0은 이미지 전체영역
+        label_ary.append([int((x*2+width)/2), int((y*2+height)/2)])
+        # note = Note(note_head = [int((x*2+width)/2), int((y*2+height)/2)])
+        note = Note()
+        note.set_note_head([int((x*2+width)/2), int((y*2+height)/2)])
+
+        notes.append(note)
+        # print("label_array: ", label_ary[i-1])
+        
+    return label_ary, notes
+
 # 이미지의 각 요소들을 라벨링
 def labeling(src):
     cnt, labels, stats, centroids = cv2.connectedComponentsWithStats(src)
@@ -316,12 +356,64 @@ mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_ERODE, kernal3, iterations
 
 cv2.imshow("mo2", mophol_img2)
 
+
 label_cnt, label_ary = labeling(mophol_img2)
 heads_ary = []
+notes_ary = []
 for i in range(int(label_cnt)):
         heads_ary.append([int((label_ary[i]['x']*2+label_ary[i]['width'])/2), int((label_ary[i]['y']*2+label_ary[i]['height'])/2)])
+        note = Note()
+        note.set_note_head([int((label_ary[i]['x']*2+label_ary[i]['width'])/2), int((label_ary[i]['y']*2+label_ary[i]['height'])/2)])
+        notes_ary.append(note)
 
 heads_ary.sort()
+
+# 오선의 범위별로 음표의 머리좌표들을 fline_note_heads에 저장
+fline_range = 50 # 오선의 한 뭉치일때를 위한 초기값
+fline_note_heads = []
+for i in range(len(fiveline)):
+    fline_note_head = []
+    if i+1 != len(fiveline): # 마지막 오선이 아니라면 오선의 범위값 조정
+        fline_range = int((fiveline[i][4] + fiveline[i+1][0]) / 2)
+        fline_range = fline_range - fiveline[i][4]
+
+    for j in range(len(heads_ary)):
+        if fiveline[i][0] - fline_range <= heads_ary[j][1] <= fiveline[i][4] + fline_range:
+            fline_note_head.append(heads_ary[j])
+        
+    fline_note_heads.append(fline_note_head)
+
+# print(fline_note_heads)
+# 좌표들을 x좌표 기준으로 정렬
+for i in range(len(fline_note_heads)):
+    fline_note_heads[i].sort()
+
+
+third, notes = third_labeling(mophol_img2)
+third.sort()
+
+# 오선의 범위별로 음표의 머리좌표들을 note_heads에 저장
+degree = 50
+note_heads = []
+
+for i in range(len(fiveline)):
+    note_head = []
+    if i+1 != len(fiveline):
+        degree = int((fiveline[i][4] + fiveline[i+1][0]) / 2)
+        degree = degree - fiveline[i][4]
+        # print(degree)
+
+    for j in range(len(third)):
+        if fiveline[i][0] - degree <= third[j][1] <= fiveline[i][4] + degree:
+            note_head.append(third[j])
+        
+    note_heads.append(note_head)
+
+
+# 좌표들을 x좌표 기준으로 정렬
+for i in range(len(note_heads)):
+    note_heads[i].sort()
+
 
 kernel4 = np.array([[0, -1, 0],
                     [0, 2, 0],
@@ -333,44 +425,42 @@ kernel5 = np.array([[0, 0, -1, 0, 0],
                     [0, 0, -1, 0, 0],
                     [0, 0, -1, 0, 0]], dtype = np.uint8)
 
-
+# kernel4 = np.dtype(np.unit8)
+# kernal4 = cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2)) # 사각형 커널
 mophol_img3 = cv2.morphologyEx(note_add_inv, cv2.MORPH_ERODE, kernel4, iterations=1)
+# mophol_img3 = cv2.morphologyEx(mophol_img3, cv2.MORPH_ERODE, kernel5, iterations=1)
 cv2.imshow("mophol_img3", mophol_img3)
 
-label_cnt, label_ary = labeling(mophol_img3)
-note_rect_ary = []
-for i in range(int(label_cnt)):
-        note_rect = []
-        note_rect.append(label_ary[i]['x'])
-        note_rect.append(label_ary[i]['y'])
-        note_rect.append(label_ary[i]['width'])
-        note_rect.append(label_ary[i]['height'])
-        note_rect_ary.append(note_rect)
-note_rect_ary.sort()
 
-notes = []
-for i in range(len(heads_ary)):
+
+
+_, note_beats, notes = print_labeling(mophol_img3, notes)
+
+note_beats.sort()
+notes2 = []
+for i in range(len(third)):
     note = Note()
-    note.set_note_head(heads_ary[i])
-    note.set_note_rect(note_rect_ary[i])
-    notes.append(note)
+    note.set_note_head(third[i])
+    note.set_note_rect(note_beats[i])
+    notes2.append(note)
 
-# 오선의 한 뭉치일때를 위한 초기값
-fline_range = 50
+
+dist = 50
 for i in range(len(fiveline)):
-    if i+1 != len(fiveline): # 마지막 오선이 아니라면 오선의 범위값 조정
-        fline_range = int((fiveline[i][4] + fiveline[i+1][0]) / 2)
-        fline_range = fline_range - fiveline[i][4]
+    if i+1 != len(fiveline):
+        dist = int((fiveline[i][4] + fiveline[i+1][0]) / 2)
+        dist = dist - fiveline[i][4]
+        # print(dist)
 
-    for j in range(len(notes)):
-        if fiveline[i][0] - fline_range <= notes[j].note_head[1] <= fiveline[i][4] + fline_range:
-            notes[j].set_fline(i)
+    for j in range(len(notes2)):
+        if fiveline[i][0] - dist <= notes2[j].note_head[1] <= fiveline[i][4] + dist:
+            notes2[j].set_fline(i)
 
-findnotename(fiveline, notes)
-findnotebeat(notes, mophol_img3)
+findnotename(fiveline, notes2)
+findnotebeat(notes2, mophol_img3)
 
-for i in range(len(notes)):
-    print(notes[i].__dict__)
+# for i in range(len(notes2)):
+#     print(notes2[i].__dict__)
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()
