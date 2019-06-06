@@ -456,6 +456,7 @@ for note in notes:
     x += width
 
 cv2.imshow("output", output)
+#
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()
