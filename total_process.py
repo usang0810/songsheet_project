@@ -39,10 +39,10 @@ class Note:
         return self.fline_area
         
     def get_name(self):
-        return self.fline_name
+        return self.name
 
     def get_beat(self):
-        return self.fline_beat
+        return self.beat
     
     def __str__(self):
         return '{self.note_head}'
@@ -119,7 +119,7 @@ def roi_maker(src, label, mask_type = 'alive'):
     elif mask_type == 'delete':
         cv2.rectangle(src, (label['x'], label['y']), (label['x'] + label['width'], label['y'] + label['height']), 0, -1)
     else:
-        raise mask_typeWrong # 'alive', 'delete'외의 타입이라면 예외발생
+        raise masktypeWrong # 'alive', 'delete'외의 타입이라면 예외발생
 
     return src
 
@@ -244,6 +244,7 @@ def findnotebeat(notes, image):
 
 # dirname = "./template2"
 # template_names = search(dirname)
+
 src = "./images/bears.jpg"
 
 src = imageLoad(src)
@@ -322,22 +323,17 @@ for i in range(int(label_cnt)):
         heads_ary.append([int((label_ary[i]['x']*2+label_ary[i]['width'])/2), int((label_ary[i]['y']*2+label_ary[i]['height'])/2)])
 heads_ary.sort()
 
+# 세로모양의 3x3커널 생성(오선밖 음표의 중심에 선이 있을경우 제거하는데 효과적임)
 kernel4 = np.array([[0, -1, 0],
                     [0, 2, 0],
                     [0, -1, 0]], dtype = np.uint8)
-                    
-kernel5 = np.array([[0, 0, -1, 0, 0],
-                    [0, 0, -1, 0, 0],
-                    [0, 0, 4, 0, 0],
-                    [0, 0, -1, 0, 0],
-                    [0, 0, -1, 0, 0]], dtype = np.uint8)
-
 
 mophol_img3 = cv2.morphologyEx(note_add_inv, cv2.MORPH_ERODE, kernel4, iterations=1)
 cv2.imshow("mophol_img3", mophol_img3)
 
 label_cnt, label_ary = labeling(mophol_img3)
 note_rect_ary = []
+
 for i in range(int(label_cnt)):
         note_rect = []
         note_rect.append(label_ary[i]['x'])
@@ -382,6 +378,103 @@ notes.sort(key = lambda object:object.fline_area)
 
 for i in range(len(notes)):
     print(notes[i].__dict__)
+
+# 출력을 위한 이미지 생성
+output = np.zeros(src.shape, dtype = src.dtype)
+output[:] = 255
+
+print(notes[0].get_beat())
+print(notes[0].get_name())
+
+C_4 = None
+if notes[0].get_beat() == 4 and notes[0].get_name() == '4C':
+    C_4 = imageLoad("./braille_image/C_4.png")
+    
+#     # cv2.imshow("C_4", C_4)
+# # C_4_inv = cv2.bitwise_not(C_4)
+# rows,cols = C_4.shape
+# roi = output[0:rows, 0:cols]
+
+# # output = cv2.add(output, C_4)
+
+# output[0:rows, 0:cols] = C_4
+# cv2.imshow("output", output)
+
+
+'''
+name, beat, way
+먼저 길표 박아줘야함
+길을 첫 음표 4C면 먼저 하나 박아줌
+
+if note.get_beat() == 2:
+        
+'''
+#도화지 하나 만들고 x, y 기준 잡고 fline 같으면 y = 30, x += 30 if x >= image.cols y+= 50
+pre_fline = 0
+x = 0
+y = 0
+width = 0
+height = 0
+#길, 마디, 마침표
+for note in notes:
+    temp = None
+    if note.get_fline() != pre_fline:
+        pre_fline += 1
+        y += height*2
+        x = 0
+
+    if note.get_beat() == 2:
+        if note.get_name() == '4C' or note.get_name() == '5C' or note.get_name() == '6C':
+            temp = imageLoad("./braille_image/C_2.png")
+        elif note.get_name() == '4D' or note.get_name() == '5D' or note.get_name() == '6D':
+            temp = imageLoad("./braille_image/D_2.png")
+        elif note.get_name() == '4E' or note.get_name() == '5E' or note.get_name() == '6E':
+            temp = imageLoad("./braille_image/E_2.png")
+        elif note.get_name() == '4F' or note.get_name() == '5F' or note.get_name() == '6F':
+            temp = imageLoad("./braille_image/F_2.png")
+        elif note.get_name() == '4G' or note.get_name() == '5G' or note.get_name() == '6G':
+            temp = imageLoad("./braille_image/G_2.png")
+        elif note.get_name() == '4A' or note.get_name() == '5A' or note.get_name() == '6A':
+            temp = imageLoad("./braille_image/A_2.png")
+        elif note.get_name() == '4B' or note.get_name() == '5B' or note.get_name() == '6B':
+            temp = imageLoad("./braille_image/B_2.png")
+    elif note.get_beat() == 4:
+        if note.get_name() == '4C' or note.get_name() == '5C' or note.get_name() == '6C':
+            temp = imageLoad("./braille_image/C_4.png")
+        elif note.get_name() == '4D' or note.get_name() == '5D' or note.get_name() == '6D':
+            temp = imageLoad("./braille_image/D_4.png")
+        elif note.get_name() == '4E' or note.get_name() == '5E' or note.get_name() == '6E':
+            temp = imageLoad("./braille_image/E_4.png")
+        elif note.get_name() == '4F' or note.get_name() == '5F' or note.get_name() == '6F':
+            temp = imageLoad("./braille_image/F_4.png")
+        elif note.get_name() == '4G' or note.get_name() == '5G' or note.get_name() == '6G':
+            temp = imageLoad("./braille_image/G_4.png")
+        elif note.get_name() == '4A' or note.get_name() == '5A' or note.get_name() == '6A':
+            temp = imageLoad("./braille_image/A_4.png")
+        elif note.get_name() == '4B' or note.get_name() == '5B' or note.get_name() == '6B':
+            temp = imageLoad("./braille_image/B_4.png")
+    elif note.get_beat() == 8:
+        if note.get_name() == '4C' or note.get_name() == '5C' or note.get_name() == '6C':
+            temp = imageLoad("./braille_image/C_8.png")
+        elif note.get_name() == '4D' or note.get_name() == '5D' or note.get_name() == '6D':
+            temp = imageLoad("./braille_image/D_8.png")
+        elif note.get_name() == '4E' or note.get_name() == '5E' or note.get_name() == '6E':
+            temp = imageLoad("./braille_image/E_8.png")
+        elif note.get_name() == '4F' or note.get_name() == '5F' or note.get_name() == '6F':
+            temp = imageLoad("./braille_image/F_8.png")
+        elif note.get_name() == '4G' or note.get_name() == '5G' or note.get_name() == '6G':
+            temp = imageLoad("./braille_image/G_8.png")
+        elif note.get_name() == '4A' or note.get_name() == '5A' or note.get_name() == '6A':
+            temp = imageLoad("./braille_image/A_8.png")
+        elif note.get_name() == '4B' or note.get_name() == '5B' or note.get_name() == '6B':
+            temp = imageLoad("./braille_image/B_8.png")
+
+    height, width = temp.shape
+    output[y:y+height, x:x+width] = temp
+    x += width
+
+cv2.imshow("output", output)
+
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()
