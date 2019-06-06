@@ -62,7 +62,6 @@ def sharpTo(src):
 def binaryTo(src):
     # 단순 이진화
     ret, output = cv2.threshold(src, 120, 255, cv2.THRESH_BINARY)
-
     return output
 
 # 오선의 좌표값 찾기(이미지의 행에 있는 검은색 화소가 70%이상을 차지하고 있다면 오선으로 취급, 여기서 70%의 값은 80으로 기준)
@@ -97,7 +96,6 @@ def Findfiveline(src):
 def delete_line(src, fiveline):
     for i in range(len(fiveline)):
         src[fiveline[i]] = 255
-
     return src
 
 # 이미지의 각 요소들을 라벨링
@@ -122,33 +120,6 @@ def roi_maker(src, label, mask_type = 'alive'):
         raise masktypeWrong # 'alive', 'delete'외의 타입이라면 예외발생
 
     return src
-
-# # 템플릿 매칭
-# def templating(src, temp):
-
-#     w, h = temp.shape[::-1]
-#     res = cv2.matchTemplate(src, temp, cv2.TM_CCOEFF_NORMED)
-#     # print(res.shape)
-
-#     # print("def templating: ", res)
-
-#     threshold = 0.90 # 정확도
-#     loc = np.where(res >= threshold)
-#     # print("def loc templating: ", loc)
-#     ary = [] # 좌표값들
-#     for pt in zip(*loc[::-1]):
-#         ary2 = [pt]
-#         bottom_right = pt[0] + w, pt[1] + h
-#         ary2.append(bottom_right)
-#         # ary.append([(pt[0]*2+w)/2, (pt[1]*2+h)/2])
-#         ary.append(ary2)
-        
-#         cv2.rectangle(src, pt, bottom_right, 0, 1)
-#         # print("top_left", pt)
-#         # print("bottom_right", bottom_right)
-#         # cv2.circle(src, (int((pt[0]*2+w)/2), int((pt[1]*2+h)/2)), 5, 0, 2)
-
-#     return src, ary
 
 # 템플릿 디렉토리에서 파일 가져오기
 def search(dirname):
@@ -240,11 +211,25 @@ def findnotebeat(notes, image):
                     else:
                         note.set_beat(4)
 
+# 템플릿 매칭
+def templating(src, temp):
+
+    w, h = temp.shape[::-1]
+    res = cv2.matchTemplate(src, temp, cv2.TM_CCOEFF_NORMED)
+
+    threshold = 0.9 # 정확도
+    loc = np.where(res >= threshold)
+
+    if len(loc[0]) > 0:
+        return 1
+    else:
+        return 0
 
 
-# dirname = "./template2"
-# template_names = search(dirname)
-
+#악보 박자표 검출
+def get_song_beat():
+    pass
+    
 src = "./images/bears.jpg"
 
 src = imageLoad(src)
@@ -280,8 +265,13 @@ for i in range(int(label_cnt)):
 fline_dst = cv2.bitwise_and(mophol_img, mophol_img, mask = fline_mask) # and연산을 이용해 mophol_img에서 mask부분만 나타냄
 fline_mask_inv = cv2.bitwise_not(fline_mask) # 배경이미지에 관심영역을 넣기위한 labeling이미지의 inv
 fline_add = cv2.add(fline_dst, fline_mask_inv) # 배경과 잘라낸 이미지 합성
-
 fline_add_inv = cv2.bitwise_not(fline_add)
+
+template = imageLoad("./template/4and4.png")
+temp_result = templating(fline_add, template)
+if temp_result == 1:
+    base_beat = 4
+    base_beat_img = imageLoad("./braille_image/4and4.png")
 
 # 음표 부분들만 mask처리
 note_mask = np.zeros(src.shape, dtype = src.dtype)
@@ -376,48 +366,32 @@ findnotebeat(notes, mophol_img3)
 
 notes.sort(key = lambda object:object.fline_area)
 
-for i in range(len(notes)):
-    print(notes[i].__dict__)
+# for i in range(len(notes)):
+#     print(notes[i].__dict__)
 
 # 출력을 위한 이미지 생성
 output = np.zeros(src.shape, dtype = src.dtype)
 output[:] = 255
 
-print(notes[0].get_beat())
-print(notes[0].get_name())
+# 박자표에 대한 점자 이미지에 넣어줌
+height, width = base_beat_img.shape
+output[0:height, 0:width] = base_beat_img
+example = imageLoad("./braille_image/C_2.png") # 예시로 2x3점자 하나 불러와서 그 가로 길이만큼 여백 넣어줌
+_, add_width = example.shape
+width += add_width
 
-C_4 = None
-if notes[0].get_beat() == 4 and notes[0].get_name() == '4C':
-    C_4 = imageLoad("./braille_image/C_4.png")
-    
-#     # cv2.imshow("C_4", C_4)
-# # C_4_inv = cv2.bitwise_not(C_4)
-# rows,cols = C_4.shape
-# roi = output[0:rows, 0:cols]
-
-# # output = cv2.add(output, C_4)
-
-# output[0:rows, 0:cols] = C_4
-# cv2.imshow("output", output)
-
-
-'''
-name, beat, way
-먼저 길표 박아줘야함
-길을 첫 음표 4C면 먼저 하나 박아줌
-
-if note.get_beat() == 2:
-        
-'''
 #도화지 하나 만들고 x, y 기준 잡고 fline 같으면 y = 30, x += 30 if x >= image.cols y+= 50
 pre_fline = 0
-x = 0
+x = width
 y = 0
 width = 0
 height = 0
+temp_beat = 0
+song_beat = 4
 #길, 마디, 마침표
 for note in notes:
     temp = None
+   
     if note.get_fline() != pre_fline:
         pre_fline += 1
         y += height*2
@@ -438,6 +412,7 @@ for note in notes:
             temp = imageLoad("./braille_image/A_2.png")
         elif note.get_name() == '4B' or note.get_name() == '5B' or note.get_name() == '6B':
             temp = imageLoad("./braille_image/B_2.png")
+
     elif note.get_beat() == 4:
         if note.get_name() == '4C' or note.get_name() == '5C' or note.get_name() == '6C':
             temp = imageLoad("./braille_image/C_4.png")
@@ -453,6 +428,7 @@ for note in notes:
             temp = imageLoad("./braille_image/A_4.png")
         elif note.get_name() == '4B' or note.get_name() == '5B' or note.get_name() == '6B':
             temp = imageLoad("./braille_image/B_4.png")
+
     elif note.get_beat() == 8:
         if note.get_name() == '4C' or note.get_name() == '5C' or note.get_name() == '6C':
             temp = imageLoad("./braille_image/C_8.png")
@@ -469,12 +445,17 @@ for note in notes:
         elif note.get_name() == '4B' or note.get_name() == '5B' or note.get_name() == '6B':
             temp = imageLoad("./braille_image/B_8.png")
 
+    temp_beat += base_beat / note.get_beat() # 기준이 되는 박자가 분자가 되고 각 음표에 할당된 박자들은 분모가 된다
     height, width = temp.shape
     output[y:y+height, x:x+width] = temp
+
+    if base_beat == int(temp_beat):
+        x += width
+        temp_beat = 0
+        
     x += width
 
 cv2.imshow("output", output)
-
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()
