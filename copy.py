@@ -61,7 +61,7 @@ def sharpTo(src):
 # 이미지 이진화
 def binaryTo(src):
     # 단순 이진화
-    ret, output = cv2.threshold(src, 200, 255, cv2.THRESH_BINARY)
+    ret, output = cv2.threshold(src, 180, 255, cv2.THRESH_BINARY)
     return output
 
 # 오선의 좌표값 찾기(이미지의 행에 있는 검은색 화소가 70%이상을 차지하고 있다면 오선으로 취급, 여기서 70%의 값은 80으로 기준)
@@ -229,29 +229,40 @@ def templating(src, temp):
 #악보 박자표 검출
 def get_song_beat():
     pass
-    
-src = "./images/small_star2.jpg"
 
+# 이미지를 불러와 적당한 크기로 resize하기 위한 함수
+def resized_img(src):
+    base_size = 380000 # 38만인 이유는 곰세마리 악보가 383412인데 이 사이즈가 가장 잘 됬으므로 기준으로 잡음
+    base_range = int(base_size / 10) # 10%를 오차범위
+    # base_fx = 1.0
+    # base_fy = 1.0
+
+    while(True):
+        if base_size - base_range <= src.size <= base_size + base_range: # 이미지의 사이즈를 오차범위로 비교해서 범위안이라면 fx, fy 리턴
+            return src
+        elif src.size > base_size + base_range:
+            src = cv2.resize(src, dsize=(0, 0), fx=0.9, fy=0.9, interpolation=cv2.INTER_LINEAR)
+        elif src.size < base_size - base_range:
+            src = cv2.resize(src, dsize=(0, 0), fx=1.1, fy=1.1, interpolation=cv2.INTER_LINEAR)
+    
+
+src = "./images/naviya.png"
 src = imageLoad(src)
 cv2.imshow("src", src)
-# src_not = cv2.bitwise_not(src)
-# src_not = binaryTo(src_not) # 이진화를 하지않으면 레이블링의 오차범위가 넓어짐
-'''
-cv2.INTER_NEAREST	이웃 보간법
-cv2.INTER_LINEAR	쌍 선형 보간법
-cv2.INTER_LINEAR_EXACT	비트 쌍 선형 보간법
-cv2.INTER_CUBIC	바이큐빅 보간법
-cv2.INTER_AREA	영역 보간법
-cv2.INTER_LANCZOS4	Lanczos 보간법
-'''
-dst56 = cv2.resize(src, dsize=(0, 0), fx=0.7, fy=0.7, interpolation=cv2.INTER_CUBIC)
-cv2.imshow("dst432", dst56)
-
-src_not = cv2.bitwise_not(dst56)
-src_not = binaryTo(src_not) # 이진화를 하지않으면 레이블링의 오차범위가 넓어짐
-
-# sharp = sharpTo(src)
-binary = binaryTo(dst56)
+resized_src = resized_img(src)
+cv2.imshow("resized_src", resized_src)
+# # src_not = cv2.bitwise_not(src)
+# # src_not = binaryTo(src_not) # 이진화를 하지않으면 레이블링의 오차범위가 넓어짐
+# '''
+# cv2.INTER_NEAREST	이웃 보간법
+# cv2.INTER_LINEAR	쌍 선형 보간법
+# cv2.INTER_LINEAR_EXACT	비트 쌍 선형 보간법
+# cv2.INTER_CUBIC	바이큐빅 보간법
+# cv2.INTER_AREA	영역 보간법
+# cv2.INTER_LANCZOS4	Lanczos 보간법
+# '''
+# # sharp = sharpTo(src)
+binary = binaryTo(resized_src)
 line, fiveline = Findfiveline(binary) # 오선의 좌표값 추출
 
 del_line = delete_line(binary, line) # 오선삭제
@@ -262,17 +273,19 @@ del_line = cv2.bitwise_not(del_line)
 cv2.imshow("binary", binary)
 cv2.imshow("del", del_line)
 
-# 모폴로지 연산을 위한 커널 사각형(2 x 2) 생성, 악보크기에 따라 커널 사각형의 값이 적절해야함
-# new_kernel = np.array([[0, -1, 0],
-#                     [0, 2, 0],
-#                     [0, -1, 0]], dtype = np.uint8)
-kernal = cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2)) # 사각형 커널
+# # 모폴로지 연산을 위한 커널 사각형(2 x 2) 생성, 악보크기에 따라 커널 사각형의 값이 적절해야함
+# # new_kernel = np.array([[0, -1, 0],
+# #                     [0, 2, 0],
+# #                     [0, -1, 0]], dtype = np.uint8)
+kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)) # 사각형 커널
 
 mophol_img = cv2.morphologyEx(del_line, cv2.MORPH_DILATE, kernal, iterations=1)
 mophol_img = cv2.bitwise_not(mophol_img)
 cv2.imshow("mo", mophol_img)
 
 # 오선의 영역들을 mask처리
+src_not = cv2.bitwise_not(resized_src)
+src_not = binaryTo(src_not) # 이진화를 하지않으면 레이블링의 오차범위가 넓어짐
 fline_mask = np.zeros(src.shape, dtype = src.dtype) # 영역에 흰색 사각형을 그리기 위한 검은 배경
 label_cnt, label_ary = labeling(src_not)
 for i in range(int(label_cnt)):
@@ -289,38 +302,40 @@ fline_add_inv = cv2.bitwise_not(fline_add)
 
 cv2.imshow("fline", fline_add)
 
-# template_4nad4 = imageLoad("./template/4and4.png")
-# template_4and2 = imageLoad("./template/4and2.jpg")
-# temp_result = templating(fline_add, template_4and4)
-# if temp_result == 1:
-#     base_beat = 4
-#     base_beat_img = imageLoad("./braille_image/4and4.png")
-# else:
-#     temp_result = templating(fline_add, template_4and2)
-#     if temp_result == 1:
-#         base_beat = 2
-#         base_beat_img = imageLoad("./braille_image/4and2.png")
+template_4and4 = imageLoad("./template/4and4.png")
+template_4and2 = imageLoad("./template/4and2.jpg")
+temp_result = templating(fline_add, template_4and4)
+if temp_result == 1:
+    base_beat = 4
+    base_beat_img = imageLoad("./braille_image/4and4.png")
+else:
+    temp_result = templating(fline_add, template_4and2)
+    if temp_result == 1:
+        base_beat = 2
+        base_beat_img = imageLoad("./braille_image/4and2.png")
 
-# # 음표 부분들만 mask처리
-# note_mask = np.zeros(src.shape, dtype = src.dtype)
-# label_cnt, label_ary = labeling(fline_add_inv)
-# for i in range(int(label_cnt)):
-#     if 100 <= label_ary[i]['area'] <= 200:
-#         # mean()함수를 이용해서 영역의 평균값 저장
-#         label_avg = cv2.mean(fline_add_inv[label_ary[i]['y']:label_ary[i]['y'] + label_ary[i]['height'], label_ary[i]['x']:label_ary[i]['x'] + label_ary[i]['width']])
-#         # print(label_avg)
-#         if label_avg[0] < 150: # 이미지의 평균값이 150이하이면 흰색 사각형 그림, 0번째 인덱스에 값이 있음, 150보다 크다면 어떻게 할꺼?????
-#             roi_maker(note_mask, label_ary[i])
-#     else:
-#         roi_maker(note_mask, label_ary[i], mask_type='delete')
+print(base_beat)
 
-# # cv2.imshow("note_mask", note_mask)
+# 음표 부분들만 mask처리
+note_mask = np.zeros(src.shape, dtype = src.dtype)
+label_cnt, label_ary = labeling(fline_add_inv)
+for i in range(int(label_cnt)):
+    if 100 <= label_ary[i]['area'] <= 200:
+        # mean()함수를 이용해서 영역의 평균값 저장
+        label_avg = cv2.mean(fline_add_inv[label_ary[i]['y']:label_ary[i]['y'] + label_ary[i]['height'], label_ary[i]['x']:label_ary[i]['x'] + label_ary[i]['width']])
+        # print(label_avg)
+        if label_avg[0] < 150: # 이미지의 평균값이 150이하이면 흰색 사각형 그림, 0번째 인덱스에 값이 있음, 150보다 크다면 어떻게 할꺼?????
+            roi_maker(note_mask, label_ary[i])
+    else:
+        roi_maker(note_mask, label_ary[i], mask_type='delete')
 
-# note_dst = cv2.bitwise_and(fline_add, fline_add, mask = note_mask)
-# note_mask_inv = cv2.bitwise_not(note_mask)
-# note_add = cv2.add(note_dst, note_mask_inv)
+cv2.imshow("note_mask", note_mask)
 
-# # cv2.imshow("note_add", note_add)
+note_dst = cv2.bitwise_and(fline_add, fline_add, mask = note_mask)
+note_mask_inv = cv2.bitwise_not(note_mask)
+note_add = cv2.add(note_dst, note_mask_inv)
+
+cv2.imshow("note_add", note_add)
 
 # note_add_inv = cv2.bitwise_not(note_add)
 

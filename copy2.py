@@ -182,13 +182,12 @@ def findnotebeat(notes, image):
     avg_height = int(avg_height / len(notes))
 
     # print(avg_width, avg_height)
-    
+
     for note in notes:
-        black_count = 0
         x, y, width, height = note.get_note_rect_element()
         roi = image[y:y+height, x:x+width]
 
-        # 높이가 평균높이 - 10 보다 작다면 온음표
+        # 높이가 평균높이보다 작다면 온음표
         if roi.shape[0] < avg_height - 10:
             note.set_beat(1)
         else:
@@ -204,16 +203,11 @@ def findnotebeat(notes, image):
                         if roi[i][center + j] != pre_value:
                             pre_value = roi[i][center + j]
                             change_count += 1
-                        if roi[i][center + j] == 0:
-                            black_count += 1
 
                     # 변환횟수가 3회 이상이면 2분음표로 추정하고 break
                     if change_count >= 3:
-                        if black_count >= 5:
-                            note.set_beat(8)
-                        else:
-                            note.set_beat(2)
-                            break    
+                        note.set_beat(2)
+                        break
                     # 3회 미만이면 4분음표이지만 오차범위를 돌리기 위해 not break
                     else:
                         note.set_beat(4)
@@ -255,7 +249,6 @@ def resized_img(src):
     
 
 src = "./images/naviya.png"
-# src = "./images/bears.jpg"
 
 src = imageLoad(src)
 src = resized_img(src)
@@ -293,25 +286,16 @@ fline_mask_inv = cv2.bitwise_not(fline_mask) # 배경이미지에 관심영역�
 fline_add = cv2.add(fline_dst, fline_mask_inv) # 배경과 잘라낸 이미지 합성
 fline_add_inv = cv2.bitwise_not(fline_add)
 
-'''
-템플릿 매칭을 이용한 박자 인식
-템플릿매칭을 한 반환값이 1이라면 해당박자로 인식
-base_beat는 박자표의 밑숫자이고 sum_beat는 박자표의 윗숫자이다
-밑숫자가 악보의 기준이 되는 박자이기 때문에 기준값으로 저장하고
-sum_beat는 기준이 되는 박자의 개수이기 때문에 박자들의 합이 sum_beat라면 한마디가 된다
-'''
 template_4and4 = imageLoad("./template/4and4.png")
 template_4and2 = imageLoad("./template/4and2.jpg")
 temp_result = templating(fline_add, template_4and4)
 if temp_result == 1:
     base_beat = 4
-    sum_beat = 4
     base_beat_img = imageLoad("./braille_image/4and4.png")
 else:
     temp_result = templating(fline_add, template_4and2)
     if temp_result == 1:
-        base_beat = 4
-        sum_beat = 2
+        base_beat = 2
         base_beat_img = imageLoad("./braille_image/4and2.png")
 
 # 음표 부분들만 mask처리
@@ -489,7 +473,7 @@ for note in notes:
     height, width = temp.shape
     output[y:y+height, x:x+width] = temp
 
-    if sum_beat == int(temp_beat):
+    if base_beat == int(temp_beat):
         x += width
         temp_beat = 0
         
