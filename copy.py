@@ -39,10 +39,10 @@ class Note:
         return self.fline_area
         
     def get_name(self):
-        return self.fline_name
+        return self.name
 
     def get_beat(self):
-        return self.fline_beat
+        return self.beat
     
     def __str__(self):
         return '{self.note_head}'
@@ -61,8 +61,7 @@ def sharpTo(src):
 # 이미지 이진화
 def binaryTo(src):
     # 단순 이진화
-    ret, output = cv2.threshold(src, 120, 255, cv2.THRESH_BINARY)
-
+    ret, output = cv2.threshold(src, 200, 255, cv2.THRESH_BINARY)
     return output
 
 # 오선의 좌표값 찾기(이미지의 행에 있는 검은색 화소가 70%이상을 차지하고 있다면 오선으로 취급, 여기서 70%의 값은 80으로 기준)
@@ -97,150 +96,30 @@ def Findfiveline(src):
 def delete_line(src, fiveline):
     for i in range(len(fiveline)):
         src[fiveline[i]] = 255
-
     return src
 
-# 모폴로지연산 - 열기
-def opening(src, k):
-    opening = cv2.morphologyEx(src, cv2.MORPH_OPEN, k)
-
-    return opening
-
-# 모폴로지연산 - 닫기
-def closing(src, k):
-    closing = cv2.morphologyEx(src, cv2.MORPH_CLOSE, k)
-
-    return closing
-
-# labeling을 할때는 흑백전환 후 해야함
-# 1차 레이블링 - 오선주의 영역을 레이블링
-def first_labeling(src): 
+# 이미지의 각 요소들을 라벨링
+def labeling(src):
     cnt, labels, stats, centroids = cv2.connectedComponentsWithStats(src)
+    stats_ary = [] # 딕셔너리 정보들을 담을 배열
 
-    dst = np.zeros(src.shape, dtype = src.dtype)
-    label_ary = []
-    for i in range(1, int(cnt)):
-        
-        x, y, width, height, area = stats[i] # stats는 1부터 시작
-        # print(i, area)
-        if area >3500: # label의 넓이가 3500 이상일때만 사각형
-            label_ary.append(stats[i])
-            cv2.rectangle(dst, (x, y), (x+width, y+height), 255, -1)
-        else:
-            cv2.rectangle(dst, (x, y), (x+width, y+height), 0, -1)
-    return dst, label_ary
+    for i in range(1, int(cnt)): # cnt : 라벨링 갯수, 라벨링 첫번째 영역은 이미지 전체이므로 제외
+        x, y, width, height, area = stats[i]
+        dic = {'x' : x, 'y' : y, 'width' : width, 'height' : height, 'area' : area}
+        stats_ary.append(dic)
 
-# 2차 레이블링 - 1차 레이블링을 통해 나눈 영역들을에서 요소들을 레이블링
-# def second_labeling(label_ary, ary_inv):
+    return cnt-1, stats_ary # cnt - 1 하는 이유는 반복문의 시작을 1부터 했기 때문
 
-#     for i in range(len(label_ary)):
-#         cnt, labels, stats, centroids = cv2.connectedComponentsWithStats(ary_inv[i])
+# 흑색 이미지에 roi영역 흰색 사각형 만들기 타입이 반대라면 삭제
+def roi_maker(src, label, mask_type = 'alive'):
+    if mask_type == 'alive':
+        cv2.rectangle(src, (label['x'], label['y']), (label['x'] + label['width'], label['y'] + label['height']), 255, -1)
+    elif mask_type == 'delete':
+        cv2.rectangle(src, (label['x'], label['y']), (label['x'] + label['width'], label['y'] + label['height']), 0, -1)
+    else:
+        raise masktypeWrong # 'alive', 'delete'외의 타입이라면 예외발생
 
-#         for j in range(1, int(cnt)):
-#             x, y, width, height, area = stats[j] # stats는 1부터 시작
-#             cv2.rectangle(label_ary[i], (x, y), (x+width, y+height), 0, 1)
-        
-#         cv2.imshow("roi"+str(i), label_ary[i])
-
-def second_labeling(src):
-    cnt, labels, stats, centroids = cv2.connectedComponentsWithStats(src)
-    dst = np.zeros(src.shape, dtype = src.dtype)
-    label_ary = []
-    for i in range(1, int(cnt)):
-        
-        x, y, width, height, area = stats[i] # stats는 1부터 시작 0은 이미지 전체영역
-        # print(area)
-        # label_ary.append(stats[i])
-        if 100 <= area <= 200: # label의 넓이가 3500 이상일때만 사각형
-            # print("src:",src[y:y+height, x:x+width])
-            src_sum = cv2.mean(src[y:y+height, x:x+width]) # 이미지의 평균값이 150이하이면 label_ary에 추가
-            # print(src_sum)
-            if src_sum[0] < 150:
-                label_ary.append(stats[i])
-                cv2.rectangle(dst, (x, y), (x+width, y+height), 255, -1)
-
-        else:
-            cv2.rectangle(dst, (x, y), (x+width, y+height), 0, -1)
-            pass
-        # cv2.rectangle(src, (x, y), (x+width, y+height), 255, 1)
-
-    return dst, label_ary
-
-def print_labeling(src, notes):
-    cnt, labels, stats, centroids = cv2.connectedComponentsWithStats(src)
-    dst = np.zeros(src.shape, dtype = src.dtype)
-    note_beats = []
-    for i in range(1, int(cnt)):
-        note_beat = []
-        x, y, width, height, area = stats[i] # stats는 1부터 시작 0은 이미지 전체영역
-        note_beat.append(x)
-        note_beat.append(y)
-        note_beat.append(width)
-        note_beat.append(height)
-        notes[i-1].set_beat(note_beat)
-
-        # print(src[y:y+height, x:x+width])
-        '''
-        src[y:y+height, x:x+width]
-        '''
-        cv2.rectangle(dst, (x, y), (x+width, y+height), 255, -1)
-        # print(src_sum)
-        note_beats.append(note_beat)
-
-    return dst, note_beats, notes
-
-def third_labeling(src):
-    cnt, labels, stats, centroids = cv2.connectedComponentsWithStats(src)
-    label_ary = []
-    notes = []
-    # print(cnt)
-    for i in range(1, int(cnt)):
-        x, y, width, height, area = stats[i] # stats는 1부터 시작 0은 이미지 전체영역
-        label_ary.append([int((x*2+width)/2), int((y*2+height)/2)])
-        # note = Note(note_head = [int((x*2+width)/2), int((y*2+height)/2)])
-        note = Note()
-        note.set_note_head([int((x*2+width)/2), int((y*2+height)/2)])
-
-        notes.append(note)
-        # print("label_array: ", label_ary[i-1])
-        
-    return label_ary, notes
-
-def make_roi(src, ary):
-    roi_img = []
-    
-    for i in ary:
-        img = src[i[1]:i[1]+i[3], i[0]:i[0]+i[2]] # 0:x, 1:y, 2:width, 3:height, 4:area
-        roi_img.append(img)
-        
-    return roi_img
-
-# 템플릿 매칭
-def templating(src, temp):
-
-    w, h = temp.shape[::-1]
-    res = cv2.matchTemplate(src, temp, cv2.TM_CCOEFF_NORMED)
-    # print(res.shape)
-
-    # print("def templating: ", res)
-
-    threshold = 0.90 # 정확도
-    loc = np.where(res >= threshold)
-    # print("def loc templating: ", loc)
-    ary = [] # 좌표값들
-    for pt in zip(*loc[::-1]):
-        ary2 = [pt]
-        bottom_right = pt[0] + w, pt[1] + h
-        ary2.append(bottom_right)
-        # ary.append([(pt[0]*2+w)/2, (pt[1]*2+h)/2])
-        ary.append(ary2)
-        
-        cv2.rectangle(src, pt, bottom_right, 0, 1)
-        # print("top_left", pt)
-        # print("bottom_right", bottom_right)
-        # cv2.circle(src, (int((pt[0]*2+w)/2), int((pt[1]*2+h)/2)), 5, 0, 2)
-
-    return src, ary
+    return src
 
 # 템플릿 디렉토리에서 파일 가져오기
 def search(dirname):
@@ -254,8 +133,14 @@ def search(dirname):
 
     return ary
 
-
+# 계이름 검출
 def findnotename(fiveline, notes):
+    '''
+    오선의 가장 밑에 걸쳐있는 계이름은 4옥타브 '미'이다
+    오선과 오선을 뺀 값에서 나누기 2를 하면 각 계이름이 위치할 수 있는 값이 나오는데
+    이 값을 이용하여 계이름을 추출한다
+    추출하기 위해 계이름을 전부 담은 배열을 선언하고 4옥타브 '도'부터 시작하여 찾는다
+    '''
     note_name_def = ['4C', '4D', '4E', '4F', '4G', '4A', '4B', '5C', '5D', '5E', '5F', '5E', '5F', '5G', '5A', '5B',
  '6C',' 6D', '6E', '6F', '6E', '6G']
 
@@ -289,26 +174,24 @@ def findnotebeat(notes, image):
     for note in notes:
         x, y, width, height = note.get_note_rect_element()
         roi = image[y:y+height, x:x+width]
-        # print(roi)
-        # print(roi.shape[0], roi.shape[1])
         avg_width += roi.shape[1]
         avg_height += roi.shape[0]
 
     avg_width = int(avg_width / len(notes))
     avg_height = int(avg_height / len(notes))
 
-    print(avg_width, avg_height)
+    # print(avg_width, avg_height)
 
     for note in notes:
         x, y, width, height = note.get_note_rect_element()
         roi = image[y:y+height, x:x+width]
 
         # 높이가 평균높이보다 작다면 온음표
-        if roi.shape[0] < avg_height:
+        if roi.shape[0] < avg_height - 1:
             note.set_beat(1)
         else:
             # 폭이 평균보다 크다면 8분음표
-            if roi.shape[1] > avg_width:
+            if roi.shape[1] > avg_width + 1:
                 note.set_beat(8)
             else:
                 center = int(roi.shape[1] / 2)
@@ -324,150 +207,270 @@ def findnotebeat(notes, image):
                     if change_count >= 3:
                         note.set_beat(2)
                         break
-                    # 3회 미만이면 4분음표이지만 오차범위를 돌리기 위해 note break
+                    # 3회 미만이면 4분음표이지만 오차범위를 돌리기 위해 not break
                     else:
                         note.set_beat(4)
 
+# 템플릿 매칭
+def templating(src, temp):
+
+    w, h = temp.shape[::-1]
+    res = cv2.matchTemplate(src, temp, cv2.TM_CCOEFF_NORMED)
+
+    threshold = 0.9 # 정확도
+    loc = np.where(res >= threshold)
+
+    if len(loc[0]) > 0:
+        return 1
+    else:
+        return 0
 
 
-
-dirname = "./template2"
-template_names = search(dirname)
-src = "./images/bears.jpg"
+#악보 박자표 검출
+def get_song_beat():
+    pass
+    
+src = "./images/small_star2.jpg"
 
 src = imageLoad(src)
 cv2.imshow("src", src)
 src_not = cv2.bitwise_not(src)
 src_not = binaryTo(src_not) # 이진화를 하지않으면 레이블링의 오차범위가 넓어짐
 
-sharp = sharpTo(src)
-binary = binaryTo(sharp)
+# sharp = sharpTo(src)
+binary = binaryTo(src)
 line, fiveline = Findfiveline(binary) # 오선의 좌표값 추출
 
 del_line = delete_line(src, line) # 오선삭제
 del_line = binaryTo(del_line) # 이진화작업
 del_line = cv2.bitwise_not(del_line)
 
-# 모폴로지 연산을 위한 커널 사각형(2 x 2) 생성, 악보크기에 따라 커널 사각형의 값이 적절해야함
-kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)) # 사각형 커널
+# cv2.imshow("sharp", sharp)
+cv2.imshow("binary", binary)
+cv2.imshow("del", del_line)
 
-mophol_img = cv2.morphologyEx(del_line, cv2.MORPH_DILATE, kernal, iterations=1)
-# mophol_img = cv2.dilate(del_line, kernal, iterations=1)
+# 모폴로지 연산을 위한 커널 사각형(2 x 2) 생성, 악보크기에 따라 커널 사각형의 값이 적절해야함
+new_kernel = np.array([[0, -1, 0],
+                    [0, 2, 0],
+                    [0, -1, 0]], dtype = np.uint8)
+kernal = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3)) # 사각형 커널
+
+mophol_img = cv2.morphologyEx(del_line, cv2.MORPH_DILATE, new_kernel, iterations=1)
 mophol_img = cv2.bitwise_not(mophol_img)
 cv2.imshow("mo", mophol_img)
 
-first_labeling, label_ary = first_labeling(src_not) # 1차 레이블링 레이블한 범위를 배열에 저장
-dst = cv2.bitwise_and(mophol_img, mophol_img, mask = first_labeling) # and연산을 이용해 mophol_img에서 mask부분만 나타냄
-first_inv = cv2.bitwise_not(first_labeling) # 배경이미지에 관심영역을 넣기위한 labeling이미지의 inv
-add = cv2.add(dst, first_inv) # 배경과 잘라낸 이미지 합성
-# cv2.imshow("add", add)
-
-add_inv = cv2.bitwise_not(add)
-
-second_labeling2, label_ary2 = second_labeling(add_inv)
-dst2 = cv2.bitwise_and(add, add, mask = second_labeling2)
-second_labeling2_inv = cv2.bitwise_not(second_labeling2)
-add2 = cv2.add(dst2, second_labeling2_inv)
-
-cv2.imshow("add2", add2)
-
-add2_inv = cv2.bitwise_not(add2)
-
-kernal2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)) # 타원형 커널
-kernal3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)) # 사각형 커널
-
-# 열기연산으로 머리와 꼬리를 나눈후 팽창연산으로 음표의 머리를 메꾸고 침식연산으로 머리 외 부분을 완전히 삭제
-mophol_img2 = cv2.morphologyEx(add2_inv, cv2.MORPH_OPEN, kernal2, iterations=1)
-mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_DILATE, kernal3, iterations=1)
-mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_ERODE, kernal3, iterations=3)
-
-# cv2.imshow("sobel", sobel)
-cv2.imshow("mo2", mophol_img2)
-
-third, notes = third_labeling(mophol_img2)
-# for i in range(len(notes)):
-#     print(notes[i].__dict__)
-third.sort()
-
-# 오선의 범위별로 음표의 머리좌표들을 note_heads에 저장
-degree = 50
-note_heads = []
-for i in range(len(fiveline)):
-    note_head = []
-    if i+1 != len(fiveline):
-        degree = int((fiveline[i][4] + fiveline[i+1][0]) / 2)
-        degree = degree - fiveline[i][4]
-        print(degree)
-
-    for j in range(len(third)):
-        if fiveline[i][0] - degree <= third[j][1] <= fiveline[i][4] + degree:
-            note_head.append(third[j])
+# 오선의 영역들을 mask처리
+fline_mask = np.zeros(src.shape, dtype = src.dtype) # 영역에 흰색 사각형을 그리기 위한 검은 배경
+label_cnt, label_ary = labeling(src_not)
+for i in range(int(label_cnt)):
+    if label_ary[i]['area'] > 2000: # 넓이가 3500 이상이면 오선을 포함하는 사각형
+        roi_maker(fline_mask, label_ary[i], 'alive')
+    # else:
+    #     roi_maker(fline_mask, label_ary[i], 'delete')
         
-    note_heads.append(note_head)
+
+fline_dst = cv2.bitwise_and(mophol_img, mophol_img, mask = fline_mask) # and연산을 이용해 mophol_img에서 mask부분만 나타냄
+fline_mask_inv = cv2.bitwise_not(fline_mask) # 배경이미지에 관심영역을 넣기위한 labeling이미지의 inv
+fline_add = cv2.add(fline_dst, fline_mask_inv) # 배경과 잘라낸 이미지 합성
+fline_add_inv = cv2.bitwise_not(fline_add)
+
+cv2.imshow("fline", fline_add)
+
+# template_4nad4 = imageLoad("./template/4and4.png")
+# template_4and2 = imageLoad("./template/4and2.jpg")
+# temp_result = templating(fline_add, template_4and4)
+# if temp_result == 1:
+#     base_beat = 4
+#     base_beat_img = imageLoad("./braille_image/4and4.png")
+# else:
+#     temp_result = templating(fline_add, template_4and2)
+#     if temp_result == 1:
+#         base_beat = 2
+#         base_beat_img = imageLoad("./braille_image/4and2.png")
+
+# # 음표 부분들만 mask처리
+# note_mask = np.zeros(src.shape, dtype = src.dtype)
+# label_cnt, label_ary = labeling(fline_add_inv)
+# for i in range(int(label_cnt)):
+#     if 100 <= label_ary[i]['area'] <= 200:
+#         # mean()함수를 이용해서 영역의 평균값 저장
+#         label_avg = cv2.mean(fline_add_inv[label_ary[i]['y']:label_ary[i]['y'] + label_ary[i]['height'], label_ary[i]['x']:label_ary[i]['x'] + label_ary[i]['width']])
+#         # print(label_avg)
+#         if label_avg[0] < 150: # 이미지의 평균값이 150이하이면 흰색 사각형 그림, 0번째 인덱스에 값이 있음, 150보다 크다면 어떻게 할꺼?????
+#             roi_maker(note_mask, label_ary[i])
+#     else:
+#         roi_maker(note_mask, label_ary[i], mask_type='delete')
+
+# # cv2.imshow("note_mask", note_mask)
+
+# note_dst = cv2.bitwise_and(fline_add, fline_add, mask = note_mask)
+# note_mask_inv = cv2.bitwise_not(note_mask)
+# note_add = cv2.add(note_dst, note_mask_inv)
+
+# # cv2.imshow("note_add", note_add)
+
+# note_add_inv = cv2.bitwise_not(note_add)
+
+# kernal2 = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)) # 타원형 커널
+# kernal3 = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)) # 사각형 커널
+
+# # 열기연산으로 머리와 꼬리를 나눈후 팽창연산으로 음표의 머리를 메꾸고 침식연산으로 머리 외 부분을 완전히 삭제
+# # 모폴로지 연산은 원래 악보에서 흑백 반전 후 연산 진행
+# mophol_img2 = cv2.morphologyEx(note_add_inv, cv2.MORPH_OPEN, kernal2, iterations=1)
+# mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_DILATE, kernal3, iterations=1)
+# mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_ERODE, kernal3, iterations=3)
+
+# cv2.imshow("mo2", mophol_img2)
+
+# label_cnt, label_ary = labeling(mophol_img2)
+# heads_ary = []
+# for i in range(int(label_cnt)):
+#         heads_ary.append([int((label_ary[i]['x']*2+label_ary[i]['width'])/2), int((label_ary[i]['y']*2+label_ary[i]['height'])/2)])
+# heads_ary.sort()
+
+# # 세로모양의 3x3커널 생성(오선밖 음표의 중심에 선이 있을경우 제거하는데 효과적임)
+# kernel4 = np.array([[0, -1, 0],
+#                     [0, 2, 0],
+#                     [0, -1, 0]], dtype = np.uint8)
+
+# mophol_img3 = cv2.morphologyEx(note_add_inv, cv2.MORPH_ERODE, kernel4, iterations=1)
+# cv2.imshow("mophol_img3", mophol_img3)
+
+# label_cnt, label_ary = labeling(mophol_img3)
+# note_rect_ary = []
+
+# for i in range(int(label_cnt)):
+#         note_rect = []
+#         note_rect.append(label_ary[i]['x'])
+#         note_rect.append(label_ary[i]['y'])
+#         note_rect.append(label_ary[i]['width'])
+#         note_rect.append(label_ary[i]['height'])
+#         note_rect_ary.append(note_rect)
+# note_rect_ary.sort()
+
+# '''
+# 정렬된 머리좌표들과 음표의 사각형 값들을 넣어줌
+# 사각형의 x좌표값이 겹치면 순서가 엉켜서 버그발생
+# 사각형의 x, y값과 머리좌표의 x, y값의 오차범위를 이용해 해결
+# '''
+# notes = []
+# for i in range(len(note_rect_ary)):
+#     note = Note()
+#     for j in range(len(heads_ary)):
+#         if note_rect_ary[i][0] < heads_ary[j][0] < note_rect_ary[i][0] + 10:
+#             if note_rect_ary[i][1] < heads_ary[j][1] < note_rect_ary[i][1] + 100:
+#                 note.set_note_head(heads_ary[j])
+#                 note.set_note_rect(note_rect_ary[i])
+#                 notes.append(note)
+#                 break
 
 
-# 좌표들을 x좌표 기준으로 정렬
-for i in range(len(note_heads)):
-    note_heads[i].sort()
-    # print(note_heads[i])
+# # 오선의 한 뭉치일때를 위한 초기값
+# fline_range = 50
+# for i in range(len(fiveline)):
+#     if i+1 != len(fiveline): # 마지막 오선이 아니라면 오선의 범위값 조정
+#         fline_range = int((fiveline[i][4] + fiveline[i+1][0]) / 2)
+#         fline_range = fline_range - fiveline[i][4]
 
-# print(fiveline)
-# print(third)
-# print(note_heads)
+#     for j in range(len(notes)):
+#         if fiveline[i][0] - fline_range <= notes[j].note_head[1] <= fiveline[i][4] + fline_range:
+#             notes[j].set_fline(i)
 
-# note_names = findnotename(note_heads, fiveline)
+# findnotename(fiveline, notes)
+# findnotebeat(notes, mophol_img3)
 
-# for i in range(len(note_names)):
-#     print(note_names[i])
+# notes.sort(key = lambda object:object.fline_area)
 
-kernel4 = np.array([[0, -1, 0],
-                    [0, 2, 0],
-                    [0, -1, 0]], dtype = np.uint8)
-                    
-kernel5 = np.array([[0, 0, -1, 0, 0],
-                    [0, 0, -1, 0, 0],
-                    [0, 0, 4, 0, 0],
-                    [0, 0, -1, 0, 0],
-                    [0, 0, -1, 0, 0]], dtype = np.uint8)
+# # for i in range(len(notes)):
+# #     print(notes[i].__dict__)
 
-# kernel4 = np.dtype(np.unit8)
-# kernal4 = cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2)) # 사각형 커널
-mophol_img3 = cv2.morphologyEx(add2_inv, cv2.MORPH_ERODE, kernel4, iterations=1)
-# mophol_img3 = cv2.morphologyEx(mophol_img3, cv2.MORPH_ERODE, kernel5, iterations=1)
-cv2.imshow("mophol_img3", mophol_img3)
-_, note_beats, notes = print_labeling(mophol_img3, notes)
+# # 출력을 위한 이미지 생성
+# output = np.zeros(src.shape, dtype = src.dtype)
+# output[:] = 255
 
-note_beats.sort()
-notes2 = []
-for i in range(len(third)):
-    note = Note()
-    note.set_note_head(third[i])
-    note.set_note_rect(note_beats[i])
-    notes2.append(note)
+# # 박자표에 대한 점자 이미지에 넣어줌
+# height, width = base_beat_img.shape
+# output[0:height, 0:width] = base_beat_img
+# example = imageLoad("./braille_image/C_2.png") # 예시로 2x3점자 하나 불러와서 그 가로 길이만큼 여백 넣어줌
+# _, add_width = example.shape
+# width += add_width
 
+# #도화지 하나 만들고 x, y 기준 잡고 fline 같으면 y = 30, x += 30 if x >= image.cols y+= 50
+# pre_fline = 0
+# x = width
+# y = 0
+# width = 0
+# height = 0
+# temp_beat = 0
+# song_beat = 4
+# #길, 마디, 마침표
+# for note in notes:
+#     temp = None
+   
+#     if note.get_fline() != pre_fline:
+#         pre_fline += 1
+#         y += height*2
+#         x = 0
 
-dist = 50
-for i in range(len(fiveline)):
-    if i+1 != len(fiveline):
-        dist = int((fiveline[i][4] + fiveline[i+1][0]) / 2)
-        dist = dist - fiveline[i][4]
-        print(dist)
+#     if note.get_beat() == 2:
+#         if note.get_name() == '4C' or note.get_name() == '5C' or note.get_name() == '6C':
+#             temp = imageLoad("./braille_image/C_2.png")
+#         elif note.get_name() == '4D' or note.get_name() == '5D' or note.get_name() == '6D':
+#             temp = imageLoad("./braille_image/D_2.png")
+#         elif note.get_name() == '4E' or note.get_name() == '5E' or note.get_name() == '6E':
+#             temp = imageLoad("./braille_image/E_2.png")
+#         elif note.get_name() == '4F' or note.get_name() == '5F' or note.get_name() == '6F':
+#             temp = imageLoad("./braille_image/F_2.png")
+#         elif note.get_name() == '4G' or note.get_name() == '5G' or note.get_name() == '6G':
+#             temp = imageLoad("./braille_image/G_2.png")
+#         elif note.get_name() == '4A' or note.get_name() == '5A' or note.get_name() == '6A':
+#             temp = imageLoad("./braille_image/A_2.png")
+#         elif note.get_name() == '4B' or note.get_name() == '5B' or note.get_name() == '6B':
+#             temp = imageLoad("./braille_image/B_2.png")
 
-    for j in range(len(notes2)):
-        if fiveline[i][0] - dist <= notes2[j].note_head[1] <= fiveline[i][4] + dist:
-            notes2[j].set_fline(i)
+#     elif note.get_beat() == 4:
+#         if note.get_name() == '4C' or note.get_name() == '5C' or note.get_name() == '6C':
+#             temp = imageLoad("./braille_image/C_4.png")
+#         elif note.get_name() == '4D' or note.get_name() == '5D' or note.get_name() == '6D':
+#             temp = imageLoad("./braille_image/D_4.png")
+#         elif note.get_name() == '4E' or note.get_name() == '5E' or note.get_name() == '6E':
+#             temp = imageLoad("./braille_image/E_4.png")
+#         elif note.get_name() == '4F' or note.get_name() == '5F' or note.get_name() == '6F':
+#             temp = imageLoad("./braille_image/F_4.png")
+#         elif note.get_name() == '4G' or note.get_name() == '5G' or note.get_name() == '6G':
+#             temp = imageLoad("./braille_image/G_4.png")
+#         elif note.get_name() == '4A' or note.get_name() == '5A' or note.get_name() == '6A':
+#             temp = imageLoad("./braille_image/A_4.png")
+#         elif note.get_name() == '4B' or note.get_name() == '5B' or note.get_name() == '6B':
+#             temp = imageLoad("./braille_image/B_4.png")
 
+#     elif note.get_beat() == 8:
+#         if note.get_name() == '4C' or note.get_name() == '5C' or note.get_name() == '6C':
+#             temp = imageLoad("./braille_image/C_8.png")
+#         elif note.get_name() == '4D' or note.get_name() == '5D' or note.get_name() == '6D':
+#             temp = imageLoad("./braille_image/D_8.png")
+#         elif note.get_name() == '4E' or note.get_name() == '5E' or note.get_name() == '6E':
+#             temp = imageLoad("./braille_image/E_8.png")
+#         elif note.get_name() == '4F' or note.get_name() == '5F' or note.get_name() == '6F':
+#             temp = imageLoad("./braille_image/F_8.png")
+#         elif note.get_name() == '4G' or note.get_name() == '5G' or note.get_name() == '6G':
+#             temp = imageLoad("./braille_image/G_8.png")
+#         elif note.get_name() == '4A' or note.get_name() == '5A' or note.get_name() == '6A':
+#             temp = imageLoad("./braille_image/A_8.png")
+#         elif note.get_name() == '4B' or note.get_name() == '5B' or note.get_name() == '6B':
+#             temp = imageLoad("./braille_image/B_8.png")
 
-# for i in range(len(notes)):
-#     print(notes2[i].__dict__)
+#     temp_beat += base_beat / note.get_beat() # 기준이 되는 박자가 분자가 되고 각 음표에 할당된 박자들은 분모가 된다
+#     height, width = temp.shape
+#     output[y:y+height, x:x+width] = temp
 
-findnotename(fiveline, notes2)
-findnotebeat(notes2, mophol_img3)
+#     if base_beat == int(temp_beat):
+#         x += width
+#         temp_beat = 0
+        
+#     x += width
 
-notes2.sort(key = lambda object:object.fline_area)
-
-for i in range(len(notes2)):
-    print(notes2[i].__dict__)
+# cv2.imshow("output", output)
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()

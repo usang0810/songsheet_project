@@ -256,7 +256,7 @@ mophol_img = cv2.bitwise_not(mophol_img)
 fline_mask = np.zeros(src.shape, dtype = src.dtype) # 영역에 흰색 사각형을 그리기 위한 검은 배경
 label_cnt, label_ary = labeling(src_not)
 for i in range(int(label_cnt)):
-    if label_ary[i]['area'] > 3500: # 넓이가 3500 이상이면 오선을 포함하는 사각형
+    if label_ary[i]['area'] > 3500: # 넓이가 3500 이상이면 오선을 포함하는 사각형 / 2000으로 기준잡아도 잘됨
         roi_maker(fline_mask, label_ary[i], 'alive')
     else:
         roi_maker(fline_mask, label_ary[i], 'delete')
@@ -456,7 +456,6 @@ for note in notes:
     x += width
 
 cv2.imshow("output", output)
-#
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()
