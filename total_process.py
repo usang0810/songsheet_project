@@ -200,33 +200,23 @@ def findnotebeat(notes, image):
                 for j in range(-1, 1):
                     pre_value = 0 # 이전값
                     change_count = 0 # 변환하는 count
-                    black_count = 0 # 검은 화소 count
-                    max_black_count = 0 # 검은 화소 max
+                    sum = 0
 
                     for i in range(len(roi)):
-
+                        sum += roi[i][center + j]
                         if roi[i][center + j] != pre_value:
                             pre_value = roi[i][center + j]
                             change_count += 1
 
-                        if i == 0:
-                            pass
-                        else:
-                            if roi[i - 1][center + j] == 0 and roi[i][center + j] == 0:
-                                black_count += 1
-                                if max_black_count < black_count:
-                                    max_black_count = black_count
-                            else:
-                                black_count = 0
-
                     # 변환횟수가 3회 이상이면 2분음표로 추정하고 break
-                    # 연속해서 검은화소가 4번이상 나왔다면 뒤집힌 8분음표로 인식
+                    # 화소들의 평균이 40미만이면 2분음표 이상이면 8분음표
+                    sum = sum / int(len(roi))
                     if change_count >= 3:
-                        if max_black_count >= 4:
-                            note.set_beat(8)
-                        else:
+                        if sum < 40:
                             note.set_beat(2)
-                            break    
+                        else:
+                            note.set_beat(8)
+
                     # 3회 미만이면 4분음표이지만 오차범위를 돌리기 위해 not break
                     else:
                         note.set_beat(4)
