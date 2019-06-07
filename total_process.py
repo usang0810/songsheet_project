@@ -184,7 +184,6 @@ def findnotebeat(notes, image):
     # print(avg_width, avg_height)
     
     for note in notes:
-        black_count = 0
         x, y, width, height = note.get_note_rect_element()
         roi = image[y:y+height, x:x+width]
 
@@ -197,19 +196,33 @@ def findnotebeat(notes, image):
                 note.set_beat(8)
             else:
                 center = int(roi.shape[1] / 2)
+
                 for j in range(-1, 1):
                     pre_value = 0 # 이전값
                     change_count = 0 # 변환하는 count
+                    black_count = 0 # 검은 화소 count
+                    max_black_count = 0 # 검은 화소 max
+
                     for i in range(len(roi)):
+
                         if roi[i][center + j] != pre_value:
                             pre_value = roi[i][center + j]
                             change_count += 1
-                        if roi[i][center + j] == 0:
-                            black_count += 1
+
+                        if i == 0:
+                            pass
+                        else:
+                            if roi[i - 1][center + j] == 0 and roi[i][center + j] == 0:
+                                black_count += 1
+                                if max_black_count < black_count:
+                                    max_black_count = black_count
+                            else:
+                                black_count = 0
 
                     # 변환횟수가 3회 이상이면 2분음표로 추정하고 break
+                    # 연속해서 검은화소가 4번이상 나왔다면 뒤집힌 8분음표로 인식
                     if change_count >= 3:
-                        if black_count >= 5:
+                        if max_black_count >= 4:
                             note.set_beat(8)
                         else:
                             note.set_beat(2)
