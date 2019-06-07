@@ -374,27 +374,26 @@ output = np.zeros(src.shape, dtype = src.dtype)
 output[:] = 255
 
 # 박자표에 대한 점자 이미지에 넣어줌
+add_height = 10 # 점자와 점자 사이의 높이거리를 10만큼 떨어트림
+x = 0
+y = 20
 height, width = base_beat_img.shape
-output[0:height, 0:width] = base_beat_img
-example = imageLoad("./braille_image/C_2.png") # 예시로 2x3점자 하나 불러와서 그 가로 길이만큼 여백 넣어줌
-_, add_width = example.shape
-width += add_width
+output[y:y+height, x:x+width] = base_beat_img
+y = y + height + add_height # 박자표를 넣고 x=0으로 해야하기 때문에 값 변경하지 않음, y는 이미지의 높이 + add_height
 
 #도화지 하나 만들고 x, y 기준 잡고 fline 같으면 y = 30, x += 30 if x >= image.cols y+= 50
 pre_fline = 0
-x = width
-y = 0
 width = 0
 height = 0
 temp_beat = 0
-song_beat = 4
+# song_beat = 4
 #길, 마디, 마침표
 for note in notes:
     temp = None
    
     if note.get_fline() != pre_fline:
         pre_fline += 1
-        y += height*2
+        y += height + add_height
         x = 0
 
     if note.get_beat() == 2:

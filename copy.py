@@ -234,14 +234,27 @@ src = "./images/small_star2.jpg"
 
 src = imageLoad(src)
 cv2.imshow("src", src)
-src_not = cv2.bitwise_not(src)
+# src_not = cv2.bitwise_not(src)
+# src_not = binaryTo(src_not) # 이진화를 하지않으면 레이블링의 오차범위가 넓어짐
+'''
+cv2.INTER_NEAREST	이웃 보간법
+cv2.INTER_LINEAR	쌍 선형 보간법
+cv2.INTER_LINEAR_EXACT	비트 쌍 선형 보간법
+cv2.INTER_CUBIC	바이큐빅 보간법
+cv2.INTER_AREA	영역 보간법
+cv2.INTER_LANCZOS4	Lanczos 보간법
+'''
+dst56 = cv2.resize(src, dsize=(0, 0), fx=0.7, fy=0.7, interpolation=cv2.INTER_CUBIC)
+cv2.imshow("dst432", dst56)
+
+src_not = cv2.bitwise_not(dst56)
 src_not = binaryTo(src_not) # 이진화를 하지않으면 레이블링의 오차범위가 넓어짐
 
 # sharp = sharpTo(src)
-binary = binaryTo(src)
+binary = binaryTo(dst56)
 line, fiveline = Findfiveline(binary) # 오선의 좌표값 추출
 
-del_line = delete_line(src, line) # 오선삭제
+del_line = delete_line(binary, line) # 오선삭제
 del_line = binaryTo(del_line) # 이진화작업
 del_line = cv2.bitwise_not(del_line)
 
@@ -250,12 +263,12 @@ cv2.imshow("binary", binary)
 cv2.imshow("del", del_line)
 
 # 모폴로지 연산을 위한 커널 사각형(2 x 2) 생성, 악보크기에 따라 커널 사각형의 값이 적절해야함
-new_kernel = np.array([[0, -1, 0],
-                    [0, 2, 0],
-                    [0, -1, 0]], dtype = np.uint8)
-kernal = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3)) # 사각형 커널
+# new_kernel = np.array([[0, -1, 0],
+#                     [0, 2, 0],
+#                     [0, -1, 0]], dtype = np.uint8)
+kernal = cv2.getStructuringElement(cv2.MORPH_CROSS, (2, 2)) # 사각형 커널
 
-mophol_img = cv2.morphologyEx(del_line, cv2.MORPH_DILATE, new_kernel, iterations=1)
+mophol_img = cv2.morphologyEx(del_line, cv2.MORPH_DILATE, kernal, iterations=1)
 mophol_img = cv2.bitwise_not(mophol_img)
 cv2.imshow("mo", mophol_img)
 
