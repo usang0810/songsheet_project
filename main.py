@@ -5,6 +5,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 class Note:
+    '''
+    음표 클래스
+    머리좌표, 음표의 사각형(x, y, width, height), 오선의 영역 위치, 계이름, 박자
+    '''
     def __init__(self):
         self.note_head = None
         self.note_rect = None
@@ -54,6 +58,7 @@ def imageLoad(src):
     return image
 
 # 이미지 외곽선 뚜렷하게
+# 필요없는듯
 def sharpTo(src):
     kernel_sharpen_1 = np.array([[-1,-1,-1],[-1,9,-1],[-1,-1,-1]])
     output = cv2.filter2D(src, -1, kernel_sharpen_1)
@@ -197,7 +202,7 @@ def findnotebeat(notes, image):
             else:
                 center = int(roi.shape[1] / 2)
 
-                for j in range(-1, 1):
+                for j in range(-2, 2):
                     pre_value = 0 # 이전값
                     change_count = 0 # 변환하는 count
                     sum = 0
@@ -212,8 +217,10 @@ def findnotebeat(notes, image):
                     # 화소들의 평균이 40미만이면 2분음표 이상이면 8분음표
                     sum = sum / int(len(roi))
                     if change_count >= 3:
+                        
                         if sum < 40:
                             note.set_beat(2)
+                            break
                         else:
                             note.set_beat(8)
 
@@ -332,6 +339,8 @@ def find_braille_img(note, temp_name):
     else:
         raise beatERROR
     
+
+# src = "./images/small_star.png"
 src = "./images/naviya.png"
 # src = "./images/bears.jpg"
 
@@ -476,6 +485,7 @@ for i in range(len(fiveline)):
         if fiveline[i][0] - fline_range <= notes[j].note_head[1] <= fiveline[i][4] + fline_range:
             notes[j].set_fline(i)
 
+cv2.imshow("moph", mophol_img3)
 findnotename(fiveline, notes)
 findnotebeat(notes, mophol_img3)
 
@@ -495,7 +505,7 @@ y = 20
 height, width = draw_img(x, y, base_beat_img, output)
 y = y + height + add_height # 박자표를 넣고 x=0으로 해야하기 때문에 값 변경하지 않음, y는 이미지의 높이 + add_height
 
-# 길표 삽입
+# 악보 첫 길표 삽입
 first_gill = notes[0].get_name()
 gill_img = find_gill(first_gill[:1])
 height, width = draw_img(x, y, gill_img, output)
@@ -510,10 +520,10 @@ temp_beat = 0
 for note in notes:
     temp = None
     temp_name = note.get_name()
-    gill = temp_name[:1]
-    temp_name = temp_name[1:2]
+    gill = temp_name[:1] # 옥타브
+    temp_name = temp_name[1:2] # 계이름
    
-    if note.get_fline() != pre_fline:
+    if note.get_fline() != pre_fline: # 다음 오선으로 바꼇으면 처음에 길표점자 삽입
         pre_fline += 1
         y += height + add_height
         x = 0
