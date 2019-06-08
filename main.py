@@ -256,9 +256,84 @@ def resized_img(src):
         elif src.size < base_size - base_range:
             src = cv2.resize(src, dsize=(0, 0), fx=1.1, fy=1.1, interpolation=cv2.INTER_LINEAR) # 이미지가 작다면 가로, 세로 1.1배로 리사이즈
     
+def find_gill(gill_name):
+    if gill_name == '1':
+        return imageLoad("./braille_image/1gill.png")
+    elif gill_name == '2':
+        return imageLoad("./braille_image/2gill.png")
+    elif gill_name == '3':
+        return imageLoad("./braille_image/3gill.png")
+    elif gill_name == '4':
+        return imageLoad("./braille_image/4gill.png")
+    elif gill_name == '5':
+        return imageLoad("./braille_image/5gill.png")
+    elif gill_name == '6':
+        return imageLoad("./braille_image/6gill.png")
+    elif gill_name == '7':
+        return imageLoad("./braille_image/7gill.png")
+    else:
+        print("gill is range out")
 
-# src = "./images/naviya.png"
-src = "./images/bears.jpg"
+def draw_img(x, y, img, output):
+    height, width = img.shape
+    output[y:y+height, x:x+width] = img
+
+    return height, width
+
+def find_braille_img(note, temp_name):
+    if note.get_beat() == 2:
+        if temp_name == 'C':
+            return imageLoad("./braille_image/C_2.png")
+        elif temp_name == 'D':
+            return imageLoad("./braille_image/D_2.png")
+        elif temp_name == 'E':
+            return imageLoad("./braille_image/E_2.png")
+        elif temp_name == 'F':
+            return imageLoad("./braille_image/F_2.png")
+        elif temp_name == 'G':
+            return imageLoad("./braille_image/G_2.png")
+        elif temp_name == 'A':
+            return imageLoad("./braille_image/A_2.png")
+        elif temp_name == 'B':
+            return imageLoad("./braille_image/B_2.png")
+
+    elif note.get_beat() == 4:
+        if temp_name == 'C':
+            return imageLoad("./braille_image/C_4.png")
+        elif temp_name == 'D':
+            return imageLoad("./braille_image/D_4.png")
+        elif temp_name == 'E':
+            return imageLoad("./braille_image/E_4.png")
+        elif temp_name == 'F':
+            return imageLoad("./braille_image/F_4.png")
+        elif temp_name == 'G':
+            return imageLoad("./braille_image/G_4.png")
+        elif temp_name == 'A':
+            return imageLoad("./braille_image/A_4.png")
+        elif temp_name == 'B':
+            return imageLoad("./braille_image/B_4.png")
+
+    elif note.get_beat() == 8:
+        if temp_name == 'C':
+            return imageLoad("./braille_image/C_8.png")
+        elif temp_name == 'D':
+            return imageLoad("./braille_image/D_8.png")
+        elif temp_name == 'E':
+            return imageLoad("./braille_image/E_8.png")
+        elif temp_name == 'F':
+            return imageLoad("./braille_image/F_8.png")
+        elif temp_name == 'G':
+            return imageLoad("./braille_image/G_8.png")
+        elif temp_name == 'A':
+            return imageLoad("./braille_image/A_8.png")
+        elif temp_name == 'B':
+            return imageLoad("./braille_image/B_8.png")
+
+    else:
+        raise beatERROR
+    
+src = "./images/naviya.png"
+# src = "./images/bears.jpg"
 
 src = imageLoad(src)
 src = resized_img(src)
@@ -330,13 +405,9 @@ for i in range(int(label_cnt)):
     else:
         roi_maker(note_mask, label_ary[i], mask_type='delete')
 
-# cv2.imshow("note_mask", note_mask)
-
 note_dst = cv2.bitwise_and(fline_add, fline_add, mask = note_mask)
 note_mask_inv = cv2.bitwise_not(note_mask)
 note_add = cv2.add(note_dst, note_mask_inv)
-
-# cv2.imshow("note_add", note_add)
 
 note_add_inv = cv2.bitwise_not(note_add)
 
@@ -421,101 +492,39 @@ output[:] = 255
 add_height = 10 # 점자와 점자 사이의 높이거리를 10만큼 떨어트림
 x = 0
 y = 20
-height, width = base_beat_img.shape
-output[y:y+height, x:x+width] = base_beat_img
+height, width = draw_img(x, y, base_beat_img, output)
 y = y + height + add_height # 박자표를 넣고 x=0으로 해야하기 때문에 값 변경하지 않음, y는 이미지의 높이 + add_height
 
 # 길표 삽입
 first_gill = notes[0].get_name()
-if first_gill[:1] == '1':
-    gill_img = imageLoad("./braille_image/1gill.png")
-elif first_gill[:1] == '2':
-    gill_img = imageLoad("./braille_image/2gill.png")
-elif first_gill[:1] == '3':
-    gill_img = imageLoad("./braille_image/3gill.png")
-elif first_gill[:1] == '4':
-    gill_img = imageLoad("./braille_image/4gill.png")
-elif first_gill[:1] == '5':
-    gill_img = imageLoad("./braille_image/5gill.png")
-elif first_gill[:1] == '6':
-    gill_img = imageLoad("./braille_image/6gill.png")
-elif first_gill[:1] == '7':
-    gill_img = imageLoad("./braille_image/7gill.png")
-else:
-    print("gill is range out")
-# print(first_gill[1:2])
-height, width = gill_img.shape
-output[y:y+height, x:x+width] = gill_img
+gill_img = find_gill(first_gill[:1])
+height, width = draw_img(x, y, gill_img, output)
 x = x + width
 
 #도화지 하나 만들고 x, y 기준 잡고 fline 같으면 y = 30, x += 30 if x >= image.cols y+= 50
-pre_fline = 0
+pre_fline = 0 # 이전의 오선의 영역을 알기위한 변수
 width = 0
 height = 0
 temp_beat = 0
-# song_beat = 4
 #길, 마디, 마침표
 for note in notes:
     temp = None
     temp_name = note.get_name()
+    gill = temp_name[:1]
     temp_name = temp_name[1:2]
    
     if note.get_fline() != pre_fline:
         pre_fline += 1
         y += height + add_height
         x = 0
+        gill_img = find_gill(gill)
+        height, width = draw_img(x, y, gill_img, output)
+        x += width
 
-    if note.get_beat() == 2:
-        if temp_name == 'C':
-            temp = imageLoad("./braille_image/C_2.png")
-        elif temp_name == 'D':
-            temp = imageLoad("./braille_image/D_2.png")
-        elif temp_name == 'E':
-            temp = imageLoad("./braille_image/E_2.png")
-        elif temp_name == 'F':
-            temp = imageLoad("./braille_image/F_2.png")
-        elif temp_name == 'G':
-            temp = imageLoad("./braille_image/G_2.png")
-        elif temp_name == 'A':
-            temp = imageLoad("./braille_image/A_2.png")
-        elif temp_name == 'B':
-            temp = imageLoad("./braille_image/B_2.png")
-
-    elif note.get_beat() == 4:
-        if temp_name == 'C':
-            temp = imageLoad("./braille_image/C_4.png")
-        elif temp_name == 'D':
-            temp = imageLoad("./braille_image/D_4.png")
-        elif temp_name == 'E':
-            temp = imageLoad("./braille_image/E_4.png")
-        elif temp_name == 'F':
-            temp = imageLoad("./braille_image/F_4.png")
-        elif temp_name == 'G':
-            temp = imageLoad("./braille_image/G_4.png")
-        elif temp_name == 'A':
-            temp = imageLoad("./braille_image/A_4.png")
-        elif temp_name == 'B':
-            temp = imageLoad("./braille_image/B_4.png")
-
-    elif note.get_beat() == 8:
-        if temp_name == 'C':
-            temp = imageLoad("./braille_image/C_8.png")
-        elif temp_name == 'D':
-            temp = imageLoad("./braille_image/D_8.png")
-        elif temp_name == 'E':
-            temp = imageLoad("./braille_image/E_8.png")
-        elif temp_name == 'F':
-            temp = imageLoad("./braille_image/F_8.png")
-        elif temp_name == 'G':
-            temp = imageLoad("./braille_image/G_8.png")
-        elif temp_name == 'A':
-            temp = imageLoad("./braille_image/A_8.png")
-        elif temp_name == 'B':
-            temp = imageLoad("./braille_image/B_8.png")
+    temp = find_braille_img(note, temp_name) # temp에 음표 이미지 저장
 
     temp_beat += base_beat / note.get_beat() # 기준이 되는 박자가 분자가 되고 각 음표에 할당된 박자들은 분모가 된다
-    height, width = temp.shape
-    output[y:y+height, x:x+width] = temp
+    height, width = draw_img(x, y, temp, output)
 
     if sum_beat == int(temp_beat):
         x += width
