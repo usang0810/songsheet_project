@@ -67,6 +67,8 @@ print(line, fiveline)
 del_line = delete_line(src, line)
 del_line = binaryTo(del_line)
 
+print(cv2.__version__)
+
 cv2.imshow("del_line", del_line)
 cv2.waitKey(0)
 cv2.destroyAllWindows()

@@ -67,7 +67,7 @@ def sharpTo(src):
 # 이미지 이진화
 def binaryTo(src):
     # 단순 이진화
-    ret, output = cv2.threshold(src, 120, 255, cv2.THRESH_BINARY)
+    ret, output = cv2.threshold(src, 120, 257, cv2.THRESH_BINARY)
     return output
 
 # 오선의 좌표값 찾기(이미지의 행에 있는 검은색 화소가 70%이상을 차지하고 있다면 오선으로 취급, 여기서 70%의 값은 80으로 기준)
@@ -115,6 +115,7 @@ def labeling(src):
         stats_ary.append(dic)
 
     return cnt-1, stats_ary # cnt - 1 하는 이유는 반복문의 시작을 1부터 했기 때문
+
 
 # 흑색 이미지에 roi영역 흰색 사각형 만들기 타입이 반대라면 삭제
 def roi_maker(src, label, mask_type = 'alive'):
@@ -341,29 +342,30 @@ def find_braille_img(note, temp_name):
     
 
 # src = "./images/small_star.png"
-src = "./images/naviya.png"
-# src = "./images/bears.jpg"
+# src = "./images/naviya.png"
+src = "./images/bears.jpg"
 
 src = imageLoad(src)
 src = resized_img(src)
 cv2.imshow("src", src)
-src_not = cv2.bitwise_not(src)
-src_not = binaryTo(src_not) # 이진화를 하지않으면 레이블링의 오차범위가 넓어짐
 
-# sharp = sharpTo(src)
-binary = binaryTo(src)
+binary = binaryTo(src) # 이진화를 하지않으면 레이블링의 오차범위가 넓어짐
+src_not = cv2.bitwise_not(binary)
+cv2.imshow("src_not", src_not)
 line, fiveline = Findfiveline(binary) # 오선의 좌표값 추출
 
-del_line = delete_line(src, line) # 오선삭제
-del_line = binaryTo(del_line) # 이진화작업
+del_line = delete_line(binary, line) # 오선삭제
+cv2.imshow("del_line", del_line)
 del_line = cv2.bitwise_not(del_line)
 
 # 모폴로지 연산을 위한 커널 사각형(2 x 2) 생성, 악보크기에 따라 커널 사각형의 값이 적절해야함
 kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)) # 사각형 커널
 
 mophol_img = cv2.morphologyEx(del_line, cv2.MORPH_DILATE, kernal, iterations=1)
+cv2.imshow("mo", mophol_img)
+
 mophol_img = cv2.bitwise_not(mophol_img)
-# cv2.imshow("mo", mophol_img)
+
 
 # 오선의 영역들을 mask처리
 fline_mask = np.zeros(src.shape, dtype = src.dtype) # 영역에 흰색 사각형을 그리기 위한 검은 배경
@@ -374,7 +376,6 @@ for i in range(int(label_cnt)):
     else:
         roi_maker(fline_mask, label_ary[i], 'delete')
         
-
 fline_dst = cv2.bitwise_and(mophol_img, mophol_img, mask = fline_mask) # and연산을 이용해 mophol_img에서 mask부분만 나타냄
 fline_mask_inv = cv2.bitwise_not(fline_mask) # 배경이미지에 관심영역을 넣기위한 labeling이미지의 inv
 fline_add = cv2.add(fline_dst, fline_mask_inv) # 배경과 잘라낸 이미지 합성
@@ -408,6 +409,7 @@ for i in range(int(label_cnt)):
     if 100 <= label_ary[i]['area'] <= 200:
         # mean()함수를 이용해서 영역의 평균값 저장
         label_avg = cv2.mean(fline_add_inv[label_ary[i]['y']:label_ary[i]['y'] + label_ary[i]['height'], label_ary[i]['x']:label_ary[i]['x'] + label_ary[i]['width']])
+        # print(fline_add_inv[label_ary[i]['y']:label_ary[i]['y'] + label_ary[i]['height'], label_ary[i]['x']:label_ary[i]['x'] + label_ary[i]['width']])
         # print(label_avg)
         if label_avg[0] < 150: # 이미지의 평균값이 150이하이면 흰색 사각형 그림, 0번째 인덱스에 값이 있음, 150보다 크다면 어떻게 할꺼?????
             roi_maker(note_mask, label_ary[i])
@@ -466,8 +468,8 @@ notes = []
 for i in range(len(note_rect_ary)):
     note = Note()
     for j in range(len(heads_ary)):
-        if note_rect_ary[i][0] < heads_ary[j][0] < note_rect_ary[i][0] + 10:
-            if note_rect_ary[i][1] < heads_ary[j][1] < note_rect_ary[i][1] + 100:
+        if note_rect_ary[i][0] < heads_ary[j][0] < note_rect_ary[i][0] + 10: # x의 오차범위는 10
+            if note_rect_ary[i][1] < heads_ary[j][1] < note_rect_ary[i][1] + 100: # y의 오차범위는 100
                 note.set_note_head(heads_ary[j])
                 note.set_note_rect(note_rect_ary[i])
                 notes.append(note)
@@ -541,6 +543,10 @@ for note in notes:
         temp_beat = 0
         
     x += width
+
+# 끝세로줄 출력
+end_img = imageLoad("./braille_image/end.png")
+height, width = draw_img(x - width, y, end_img, output)
 
 cv2.imshow("output", output)
 
