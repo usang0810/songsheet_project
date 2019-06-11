@@ -265,22 +265,11 @@ def resized_img(src):
             src = cv2.resize(src, dsize=(0, 0), fx=1.1, fy=1.1, interpolation=cv2.INTER_LINEAR) # 이미지가 작다면 가로, 세로 1.1배로 리사이즈
     
 def find_gill(gill_name):
-    if gill_name == '1':
-        return imageLoad("./braille_image/1gill.png")
-    elif gill_name == '2':
-        return imageLoad("./braille_image/2gill.png")
-    elif gill_name == '3':
-        return imageLoad("./braille_image/3gill.png")
-    elif gill_name == '4':
-        return imageLoad("./braille_image/4gill.png")
-    elif gill_name == '5':
-        return imageLoad("./braille_image/5gill.png")
-    elif gill_name == '6':
-        return imageLoad("./braille_image/6gill.png")
-    elif gill_name == '7':
-        return imageLoad("./braille_image/7gill.png")
-    else:
-        print("gill is range out")
+    for gill in range(1, 8):
+        if gill_name == str(gill):
+            return imageLoad("./braille_image/" + str(gill) +"gill.png")
+    
+    print("gill is range out")
 
 def draw_img(x, y, img, output):
     height, width = img.shape
@@ -289,83 +278,49 @@ def draw_img(x, y, img, output):
     return height, width
 
 def find_braille_img(note, temp_name):
-    if note.get_beat() == 2:
-        if temp_name == 'C':
-            return imageLoad("./braille_image/C_2.png")
-        elif temp_name == 'D':
-            return imageLoad("./braille_image/D_2.png")
-        elif temp_name == 'E':
-            return imageLoad("./braille_image/E_2.png")
-        elif temp_name == 'F':
-            return imageLoad("./braille_image/F_2.png")
-        elif temp_name == 'G':
-            return imageLoad("./braille_image/G_2.png")
-        elif temp_name == 'A':
-            return imageLoad("./braille_image/A_2.png")
-        elif temp_name == 'B':
-            return imageLoad("./braille_image/B_2.png")
 
+    list_name = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
+    if note.get_beat() == 2:
+        
+        for name in list_name:
+            if temp_name == name:
+                return imageLoad("./braille_image/" + name + "_2.png")
+    
     elif note.get_beat() == 4:
-        if temp_name == 'C':
-            return imageLoad("./braille_image/C_4.png")
-        elif temp_name == 'D':
-            return imageLoad("./braille_image/D_4.png")
-        elif temp_name == 'E':
-            return imageLoad("./braille_image/E_4.png")
-        elif temp_name == 'F':
-            return imageLoad("./braille_image/F_4.png")
-        elif temp_name == 'G':
-            return imageLoad("./braille_image/G_4.png")
-        elif temp_name == 'A':
-            return imageLoad("./braille_image/A_4.png")
-        elif temp_name == 'B':
-            return imageLoad("./braille_image/B_4.png")
+        for name in list_name:
+            if temp_name == name:
+                return imageLoad("./braille_image/" + name + "_4.png")
 
     elif note.get_beat() == 8:
-        if temp_name == 'C':
-            return imageLoad("./braille_image/C_8.png")
-        elif temp_name == 'D':
-            return imageLoad("./braille_image/D_8.png")
-        elif temp_name == 'E':
-            return imageLoad("./braille_image/E_8.png")
-        elif temp_name == 'F':
-            return imageLoad("./braille_image/F_8.png")
-        elif temp_name == 'G':
-            return imageLoad("./braille_image/G_8.png")
-        elif temp_name == 'A':
-            return imageLoad("./braille_image/A_8.png")
-        elif temp_name == 'B':
-            return imageLoad("./braille_image/B_8.png")
+        for name in list_name:
+            if temp_name == name:
+                return imageLoad("./braille_image/" + name + "_8.png")
 
     else:
         raise beatERROR
     
 
 # src = "./images/small_star.png"
-# src = "./images/naviya.png"
-src = "./images/bears.jpg"
+src = "./images/naviya.png"
+# src = "./images/bears.jpg"
 
 src = imageLoad(src)
-src = resized_img(src)
 cv2.imshow("src", src)
+src = resized_img(src)
 
 binary = binaryTo(src) # 이진화를 하지않으면 레이블링의 오차범위가 넓어짐
 src_not = cv2.bitwise_not(binary)
-cv2.imshow("src_not", src_not)
 line, fiveline = Findfiveline(binary) # 오선의 좌표값 추출
 
 del_line = delete_line(binary, line) # 오선삭제
-cv2.imshow("del_line", del_line)
 del_line = cv2.bitwise_not(del_line)
 
 # 모폴로지 연산을 위한 커널 사각형(2 x 2) 생성, 악보크기에 따라 커널 사각형의 값이 적절해야함
 kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)) # 사각형 커널
 
 mophol_img = cv2.morphologyEx(del_line, cv2.MORPH_DILATE, kernal, iterations=1)
-cv2.imshow("mo", mophol_img)
 
 mophol_img = cv2.bitwise_not(mophol_img)
-
 
 # 오선의 영역들을 mask처리
 fline_mask = np.zeros(src.shape, dtype = src.dtype) # 영역에 흰색 사각형을 그리기 위한 검은 배경
@@ -431,8 +386,6 @@ mophol_img2 = cv2.morphologyEx(note_add_inv, cv2.MORPH_OPEN, kernal2, iterations
 mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_DILATE, kernal3, iterations=1)
 mophol_img2 = cv2.morphologyEx(mophol_img2, cv2.MORPH_ERODE, kernal3, iterations=3)
 
-cv2.imshow("mo2", mophol_img2)
-
 label_cnt, label_ary = labeling(mophol_img2)
 heads_ary = []
 for i in range(int(label_cnt)):
@@ -445,7 +398,6 @@ kernel4 = np.array([[0, -1, 0],
                     [0, -1, 0]], dtype = np.uint8)
 
 mophol_img3 = cv2.morphologyEx(note_add_inv, cv2.MORPH_ERODE, kernel4, iterations=1)
-cv2.imshow("mophol_img3", mophol_img3)
 
 label_cnt, label_ary = labeling(mophol_img3)
 note_rect_ary = []
@@ -476,7 +428,7 @@ for i in range(len(note_rect_ary)):
                 break
 
 
-# 오선의 한 뭉치일때를 위한 초기값
+# 오선이 한 뭉치일때를 위한 초기값
 fline_range = 50
 for i in range(len(fiveline)):
     if i+1 != len(fiveline): # 마지막 오선이 아니라면 오선의 범위값 조정
@@ -487,14 +439,13 @@ for i in range(len(fiveline)):
         if fiveline[i][0] - fline_range <= notes[j].note_head[1] <= fiveline[i][4] + fline_range:
             notes[j].set_fline(i)
 
-cv2.imshow("moph", mophol_img3)
 findnotename(fiveline, notes)
 findnotebeat(notes, mophol_img3)
 
 notes.sort(key = lambda object:object.fline_area)
 
-for i in range(len(notes)):
-    print(notes[i].__dict__)
+# for i in range(len(notes)):
+#     print(notes[i].__dict__)
 
 # 출력을 위한 이미지 생성
 output = np.zeros(src.shape, dtype = src.dtype)
