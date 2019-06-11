@@ -301,8 +301,8 @@ def find_braille_img(note, temp_name):
     
 
 # src = "./images/small_star.png"
-src = "./images/naviya.png"
-# src = "./images/bears.jpg"
+# src = "./images/naviya.png"
+src = "./images/bears.jpg"
 
 src = imageLoad(src)
 cv2.imshow("src", src)
@@ -321,16 +321,26 @@ kernal = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)) # 사각형 커널
 mophol_img = cv2.morphologyEx(del_line, cv2.MORPH_DILATE, kernal, iterations=1)
 
 mophol_img = cv2.bitwise_not(mophol_img)
+cv2.imshow("ddd", mophol_img)
 
 # 오선의 영역들을 mask처리
 fline_mask = np.zeros(src.shape, dtype = src.dtype) # 영역에 흰색 사각형을 그리기 위한 검은 배경
 label_cnt, label_ary = labeling(src_not)
+# src2_not = src_not[:]
+# for label in label_ary:
+#     cv2.rectangle(src2_not, (label['x'], label['y']), (label['x']+label['width'], label['y']+label['height']), 255, 1)
+
+cv2.imshow("src2", src2_not)
 for i in range(int(label_cnt)):
     if label_ary[i]['area'] > 3500: # 넓이가 3500 이상이면 오선을 포함하는 사각형 / 2000으로 기준잡아도 잘됨
         roi_maker(fline_mask, label_ary[i], 'alive')
-    else:
+    # else:
+    #     roi_maker(fline_mask, label_ary[i], 'delete')
+
+for i in range(int(label_cnt)):
+    if label_ary[i]['area'] <= 3500:
         roi_maker(fline_mask, label_ary[i], 'delete')
-        
+
 fline_dst = cv2.bitwise_and(mophol_img, mophol_img, mask = fline_mask) # and연산을 이용해 mophol_img에서 mask부분만 나타냄
 fline_mask_inv = cv2.bitwise_not(fline_mask) # 배경이미지에 관심영역을 넣기위한 labeling이미지의 inv
 fline_add = cv2.add(fline_dst, fline_mask_inv) # 배경과 잘라낸 이미지 합성
